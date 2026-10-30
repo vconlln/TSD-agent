@@ -22,7 +22,16 @@ electron-builder
 
 ## 1. 一键方式：GitHub Actions（推荐）
 
-仓库自带 `.github/workflows/build-windows.yml`：
+仓库自带工作流模板 `ci/build-windows.yml`（GitHub Actions 只认 `.github/workflows/`，
+先安装一次）：
+
+```bash
+gh auth refresh -s workflow          # 授予 workflow 权限（缺少时会拒绝推送）
+bash scripts/install-workflows.sh    # 复制 ci/*.yml → .github/workflows/
+git add .github/workflows && git commit -m "ci: enable GitHub Actions" && git push
+```
+
+工作流内容：
 
 - `workflow_dispatch`：手动触发
 - push 到 `main`：构建并上传 artifact
@@ -101,7 +110,7 @@ npm run dist:linux      # release/TSD Agent-1.0.0.AppImage
 npm run dist:mac
 ```
 
-CI 里同样有 `.github/workflows/build-linux.yml`。
+CI 里同样有 `ci/build-linux.yml`（安装方式同上）。
 
 ---
 

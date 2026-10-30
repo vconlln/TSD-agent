@@ -142,9 +142,13 @@ git tag v1.0.0
 git push origin v1.0.0
 ```
 
-- 工作流：`.github/workflows/build-windows.yml`
+- 工作流模板：`ci/build-windows.yml`（先执行 `bash scripts/install-workflows.sh` 安装到 `.github/workflows/`）
 - 产物：Actions 里的 `TSD-Agent-Windows-Installer`，以及该 tag 的 Release 附件 `TSD-Agent-Setup-1.0.0.exe`
 - 流程：pip 装依赖 → PyInstaller 打后端 → `npm ci` → `vite build` → `electron-builder --win nsis`
+
+> 仓库里的工作流放在 `ci/` 下，是因为当前推送 token 缺少 GitHub 的 `workflow` 作用域。
+> 执行一次 `gh auth refresh -s workflow`，再运行 `bash scripts/install-workflows.sh` 即可启用
+> （详见 [ci/README.md](ci/README.md)）。`
 
 ### 方式二：Windows 本地打包
 
@@ -236,7 +240,8 @@ TSD-agent/
 ├── scripts/               # 构建脚本、图标生成、端到端自测
 ├── docs/                  # API / 打包 / 架构 / 主题文档
 ├── build/                 # 图标等打包资源
-└── .github/workflows/     # Windows / Linux 打包流水线
+├── ci/                    # GitHub Actions 工作流模板（安装到 .github/workflows）
+└── .github/workflows/     # 安装后生成：Windows / Linux 打包流水线
 ```
 
 ---
