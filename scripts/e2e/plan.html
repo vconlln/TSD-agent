@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>订单中心 v1.4 项目方案</title>
+</head>
+<body>
+  <nav>首页 / 项目 / 订单中心</nav>
+  <main>
+    <h1>订单中心项目方案</h1>
+    <p>订单中心负责订单创建、状态流转、支付回调与对账。当前版本 <strong>v1.4.0</strong>，基于 Node.js + Express + SQLite 实现。</p>
+
+    <h2>一、项目目标</h2>
+    <ul>
+      <li>支撑日均 20 万订单的创建与查询</li>
+      <li>提供幂等的下单接口，避免重复提交</li>
+      <li>沉淀统一的订单状态机</li>
+    </ul>
+
+    <h2>二、模块划分</h2>
+    <table>
+      <tr><th>模块</th><th>职责</th></tr>
+      <tr><td>auth</td><td>会话认证与用户上下文</td></tr>
+      <tr><td>orders</td><td>订单创建、查询、状态流转</td></tr>
+      <tr><td>payments</td><td>支付回调处理与对账</td></tr>
+    </table>
+
+    <h2>三、关键接口</h2>
+    <pre><code class="language-ts">POST /api/orders
+GET  /api/orders/:id
+POST /api/payments/callback</code></pre>
+
+    <h2>四、非功能需求</h2>
+    <ol>
+      <li>下单接口 P99 延迟 &lt; 200ms</li>
+      <li>所有写操作需要审计日志</li>
+      <li>关键路径具备单元测试与集成测试</li>
+    </ol>
+
+    <h2>五、下一步</h2>
+    <p>下载示例代码：<a href="sample-repo.zip">sample-repo.zip</a></p>
+  </main>
+</body>
+</html>

@@ -1,0 +1,63 @@
+appId: com.tsd.agent
+productName: TSD Agent
+copyright: Copyright © 2026 vconlln
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+  - '!**/*.map'
+  - '!**/*.ts'
+
+asar: true
+compression: maximum
+
+# 内置 Python 后端（PyInstaller onedir 产物）。
+# CI / 本地打包脚本会把 server/dist/tsd-server 拷到 backend-dist/tsd-server。
+extraResources:
+  - from: backend-dist
+    to: backend
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  artifactName: ${productName}-Setup-${version}.${ext}
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: TSD Agent
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+portable:
+  artifactName: ${productName}-Portable-${version}.${ext}
+
+linux:
+  target:
+    - AppImage
+  category: Development
+  icon: build/icon.png
+  artifactName: ${productName}-${version}.${ext}
+
+mac:
+  target:
+    - dmg
+  category: public.app-category.developer-tools
+  icon: build/icon.png
+  artifactName: ${productName}-${version}.${ext}

@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN" class="dark" data-theme="violet" data-mode="dark" data-density="cozy">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http: https: ws: wss:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'" />
+    <title>TSD Agent</title>
+    <style>
+      html, body, #root { height: 100%; margin: 0; }
+      body { background: #08090f; }
+      .boot-splash { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(1200px 600px at 50% 0%, #171a2b, #08090f 70%); color: #cbd5ff; font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+      .boot-splash .ring { width: 46px; height: 46px; border-radius: 999px; border: 2px solid rgba(124,92,255,.2); border-top-color: #7c5cff; animation: spin .9s linear infinite; margin: 0 auto 16px; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .boot-splash p { font-size: 13px; letter-spacing: .08em; opacity: .7; }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot-splash"><div><div class="ring"></div><p>TSD AGENT 正在启动…</p></div></div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

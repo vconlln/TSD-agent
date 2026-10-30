@@ -1,0 +1,35 @@
+# deps & build
+node_modules/
+dist/
+release/
+tsd-build/
+*.tsbuildinfo
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+server/build/
+server/dist/
+*.spec.bak
+
+# e2e temp
+scripts/e2e/.tmp/
+
+# local state
+.tsd-work/
+workspace/
+*.log
+npm-debug.log*
+
+# editor / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# secrets
+.env
+.env.local

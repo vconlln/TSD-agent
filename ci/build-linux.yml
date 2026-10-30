@@ -1,0 +1,55 @@
+name: Build Linux AppImage
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r server/requirements.txt pyinstaller
+
+      - name: Build Python backend
+        working-directory: server
+        run: python -m PyInstaller --noconfirm tsd_server.spec
+
+      - name: Stage backend
+        run: |
+          mkdir -p backend-dist
+          cp -r server/dist/tsd-server backend-dist/tsd-server
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Build app
+        run: npm run build
+
+      - name: Package AppImage
+        run: npx electron-builder --linux AppImage --x64 --publish never
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TSD-Agent-Linux-AppImage
+          path: release/*.AppImage
+          if-no-files-found: error

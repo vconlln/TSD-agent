@@ -1,0 +1,242 @@
+import type {
+  AgentEvent,
+  AppSettings,
+  CreateProjectInput,
+  DiffPayload,
+  Documents,
+  FileContent,
+  HealthInfo,
+  Project,
+  Run,
+  SettingsPatch,
+  StartRunInput,
+  TreeNode,
+} from '../../shared/types'
+
+export class ApiError extends Error {
+  status: number
+  detail?: string
+  constructor(message: string, status = 0, detail?: string) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.detail = detail
+  }
+}
+
+const DEFAULT_BASE = 'http://127.0.0.1:8791'
+
+function resolveBase(): string {
+  const fromBridge = (window as unknown as { tsd?: { backendUrl?: string } }).tsd?.backendUrl
+  const fromBoot = window.__TSD_BOOT__?.apiBase
+  const fromEnv = import.meta.env.VITE_API_BASE as string | undefined
+  return (fromBridge || fromBoot || fromEnv || DEFAULT_BASE).replace(/\/$/, '')
+}
+
+let baseUrl = resolveBase()
+
+export function getApiBase() {
+  return baseUrl
+}
+
+export function setApiBase(url: string) {
+  baseUrl = url.replace(/\/$/, '')
+}
+
+async function parseError(res: Response): Promise<ApiError> {
+  let detail = ''
+  try {
+    const text = await res.text()
+    try {
+      const json = JSON.parse(text)
+      detail = json.detail || json.error || text
+    } catch {
+      detail = text
+    }
+  } catch {
+    /* ignore */
+  }
+  return new ApiError(detail || `请求失败（HTTP ${res.status}）`, res.status, detail)
+}
+
+async function request<T>(path: string, init?: RequestInit & { timeoutMs?: number }): Promise<T> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), init?.timeoutMs ?? 120_000)
+  try {
+    const res = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      signal: init?.signal ?? controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init?.headers || {}),
+      },
+    })
+    if (!res.ok) throw await parseError(res)
+    if (res.status === 204) return undefined as T
+    const ct = res.headers.get('content-type') || ''
+    if (!ct.includes('application/json')) return (await res.text()) as unknown as T
+    return (await res.json()) as T
+  } catch (err) {
+    if (err instanceof ApiError) throw err
+    if ((err as Error).name === 'AbortError') throw new ApiError('请求超时，请检查后端是否在运行', 0)
+    throw new ApiError((err as Error).message || '无法连接后端服务', 0)
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* SSE over fetch — POST-free, resumable, works with strict CSP        */
+/* ------------------------------------------------------------------ */
+
+export interface StreamHandle {
+  close: () => void
+  done: Promise<void>
+}
+
+function parseSseChunk(buffer: string): { events: string[]; rest: string } {
+  const events: string[] = []
+  let rest = buffer
+  let idx: number
+  while ((idx = rest.indexOf('\n\n')) >= 0) {
+    const raw = rest.slice(0, idx)
+    rest = rest.slice(idx + 2)
+    const dataLines = raw
+      .split('\n')
+      .filter((l) => l.startsWith('data:'))
+      .map((l) => l.slice(5).trimStart())
+    if (dataLines.length) events.push(dataLines.join('\n'))
+  }
+  return { events, rest }
+}
+
+export function streamRunEvents(
+  runId: string,
+  opts: {
+    since?: number
+    onEvent: (event: AgentEvent) => void
+    onError?: (err: Error) => void
+    onClose?: () => void
+  },
+): StreamHandle {
+  const controller = new AbortController()
+  let closed = false
+  let lastSeq = opts.since ?? 0
+
+  const done = (async () => {
+    let attempt = 0
+    while (!closed) {
+      try {
+        const res = await fetch(`${baseUrl}/api/runs/${runId}/events?since=${lastSeq}`, {
+          signal: controller.signal,
+          headers: { Accept: 'text/event-stream' },
+        })
+        if (!res.ok) throw await parseError(res)
+        if (!res.body) throw new Error('后端未返回事件流')
+        attempt = 0
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        let finished = false
+        while (!closed) {
+          const { value, done: readerDone } = await reader.read()
+          if (readerDone) break
+          buffer += decoder.decode(value, { stream: true })
+          const parsed = parseSseChunk(buffer)
+          buffer = parsed.rest
+          for (const raw of parsed.events) {
+            if (raw === '[DONE]') {
+              finished = true
+              continue
+            }
+            try {
+              const event = JSON.parse(raw) as AgentEvent
+              if (event.seq <= lastSeq) continue
+              lastSeq = event.seq
+              opts.onEvent(event)
+              if (event.type === 'run.done' || event.type === 'run.error') finished = true
+            } catch {
+              /* ignore malformed frame */
+            }
+          }
+          if (finished) break
+        }
+        if (finished) break
+        if (closed) break
+        attempt += 1
+        if (attempt > 6) break
+        await new Promise((r) => setTimeout(r, Math.min(400 * attempt, 2500)))
+      } catch (err) {
+        if (closed || (err as Error).name === 'AbortError') break
+        attempt += 1
+        if (attempt > 6) {
+          opts.onError?.(err as Error)
+          break
+        }
+        await new Promise((r) => setTimeout(r, Math.min(400 * attempt, 2500)))
+      }
+    }
+    opts.onClose?.()
+  })()
+
+  return {
+    close: () => {
+      closed = true
+      controller.abort()
+    },
+    done,
+  }
+}
+
+/* ------------------------------------------------------------------ */
+
+export const api = {
+  base: () => baseUrl,
+
+  health: () => request<HealthInfo>('/api/health', { timeoutMs: 4000 }),
+
+  getSettings: () => request<AppSettings>('/api/settings'),
+  updateSettings: (patch: SettingsPatch) =>
+    request<AppSettings>('/api/settings', { method: 'PUT', body: JSON.stringify(patch) }),
+
+  listProjects: () => request<{ projects: Project[] }>('/api/projects'),
+  getProject: (id: string) => request<Project>(`/api/projects/${id}`),
+  createProject: (input: CreateProjectInput) =>
+    request<Project>('/api/projects', { method: 'POST', body: JSON.stringify(input) }),
+  updateProject: (id: string, patch: Partial<Project>) =>
+    request<Project>(`/api/projects/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteProject: (id: string) => request<void>(`/api/projects/${id}`, { method: 'DELETE' }),
+
+  startRun: (id: string, input: StartRunInput) =>
+    request<{ runId: string; run: Run }>(`/api/projects/${id}/run`, { method: 'POST', body: JSON.stringify(input) }),
+  startChat: (id: string, message: string, conversationId?: string) =>
+    request<{ runId: string }>(`/api/projects/${id}/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ message, conversationId }),
+    }),
+  cancelRun: (runId: string) => request<{ ok: boolean }>(`/api/runs/${runId}/cancel`, { method: 'POST' }),
+  getRun: (runId: string) => request<Run>(`/api/runs/${runId}`),
+  listRuns: (projectId: string) => request<{ runs: Run[] }>(`/api/runs?projectId=${projectId}`),
+
+  documents: (id: string) => request<Documents>(`/api/projects/${id}/documents`),
+  diff: (id: string, refresh = false) =>
+    request<DiffPayload>(`/api/projects/${id}/diff${refresh ? '?refresh=1' : ''}`, { timeoutMs: 60_000 }),
+  tree: (id: string, side: 'source' | 'target') =>
+    request<{ tree: TreeNode | null; root: string; exists: boolean }>(`/api/projects/${id}/tree?side=${side}`),
+  file: (id: string, side: 'source' | 'target', path: string) =>
+    request<FileContent>(`/api/projects/${id}/file?side=${side}&path=${encodeURIComponent(path)}`),
+  applyProposal: (id: string, proposalId: string) =>
+    request<{ ok: boolean; files: string[] }>(`/api/projects/${id}/apply`, {
+      method: 'POST',
+      body: JSON.stringify({ proposalId }),
+    }),
+  discardProposal: (id: string, proposalId: string) =>
+    request<{ ok: boolean }>(`/api/projects/${id}/apply`, {
+      method: 'DELETE',
+      body: JSON.stringify({ proposalId }),
+    }),
+  exportBundle: (id: string) =>
+    request<{ ok: boolean; path: string }>(`/api/projects/${id}/export`, { method: 'POST' }),
+}
+
+export { streamRunEvents as subscribeRun }

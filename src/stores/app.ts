@@ -1,0 +1,105 @@
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import type { HealthInfo } from '../../shared/types'
+import type { BackendStatus } from '../../shared/bridge'
+
+export type ThemeId = 'violet' | 'ocean' | 'emerald' | 'sunset' | 'rose' | 'sakura' | 'graphite'
+export type Mode = 'dark' | 'light'
+export type Density = 'cozy' | 'compact'
+export type Effects = 'full' | 'calm' | 'off'
+
+export interface Appearance {
+  theme: ThemeId
+  mode: Mode
+  density: Density
+  effects: Effects
+  radius: number
+  sidebarCollapsed: boolean
+  codeWrap: boolean
+  diffLayout: 'unified' | 'split'
+  diffHighlight: boolean
+}
+
+export const THEMES: Array<{ id: ThemeId; name: string; from: string; to: string }> = [
+  { id: 'violet', name: '极光紫', from: 'hsl(258 92% 68%)', to: 'hsl(290 92% 62%)' },
+  { id: 'ocean', name: '深海蓝', from: 'hsl(205 96% 58%)', to: 'hsl(168 88% 46%)' },
+  { id: 'emerald', name: '翡翠绿', from: 'hsl(158 74% 45%)', to: 'hsl(184 84% 48%)' },
+  { id: 'sunset', name: '落日橙', from: 'hsl(22 96% 58%)', to: 'hsl(342 88% 62%)' },
+  { id: 'rose', name: '玫瑰红', from: 'hsl(344 88% 62%)', to: 'hsl(14 92% 62%)' },
+  { id: 'sakura', name: '樱花粉', from: 'hsl(322 84% 68%)', to: 'hsl(264 80% 72%)' },
+  { id: 'graphite', name: '石墨灰', from: 'hsl(220 12% 78%)', to: 'hsl(220 10% 52%)' },
+]
+
+const DEFAULT_APPEARANCE: Appearance = {
+  theme: 'violet',
+  mode: 'dark',
+  density: 'cozy',
+  effects: 'full',
+  radius: 12,
+  sidebarCollapsed: false,
+  codeWrap: false,
+  diffLayout: 'unified',
+  diffHighlight: true,
+}
+
+interface AppState {
+  appearance: Appearance
+  themePanelOpen: boolean
+  backend: BackendStatus
+  health: HealthInfo | null
+  apiReady: boolean
+  setAppearance: (patch: Partial<Appearance>) => void
+  resetAppearance: () => void
+  setThemePanelOpen: (open: boolean) => void
+  setBackend: (status: BackendStatus) => void
+  setHealth: (health: HealthInfo | null) => void
+  setApiReady: (ready: boolean) => void
+  applyToDocument: () => void
+}
+
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => ({
+      appearance: DEFAULT_APPEARANCE,
+      themePanelOpen: false,
+      backend: { state: 'starting', url: '', mode: 'embedded' },
+      health: null,
+      apiReady: false,
+      setAppearance: (patch) => {
+        set((s) => ({ appearance: { ...s.appearance, ...patch } }))
+        get().applyToDocument()
+      },
+      resetAppearance: () => {
+        set({ appearance: DEFAULT_APPEARANCE })
+        get().applyToDocument()
+      },
+      setThemePanelOpen: (themePanelOpen) => set({ themePanelOpen }),
+      setBackend: (backend) => set({ backend }),
+      setHealth: (health) => set({ health }),
+      setApiReady: (apiReady) => set({ apiReady }),
+      applyToDocument: () => {
+        const { appearance } = get()
+        const root = document.documentElement
+        root.dataset.theme = appearance.theme
+        root.dataset.mode = appearance.mode
+        root.dataset.density = appearance.density
+        root.dataset.effects = appearance.effects
+        root.classList.toggle('dark', appearance.mode === 'dark')
+        root.style.setProperty('--radius', `${appearance.radius}px`)
+        const meta = document.querySelector('meta[name="theme-color"]')
+        if (meta) meta.setAttribute('content', appearance.mode === 'dark' ? '#08090f' : '#f7f8fb')
+      },
+    }),
+    {
+      name: 'tsd.appearance.v1',
+      version: 1,
+      partialize: (state) => ({ appearance: state.appearance }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as { appearance?: Partial<Appearance> }
+        return { ...current, appearance: { ...DEFAULT_APPEARANCE, ...(p.appearance ?? {}) } }
+      },
+    },
+  ),
+)
+
+export { DEFAULT_APPEARANCE }
