@@ -68,8 +68,7 @@ export function NewProjectForm({
       return
     }
     if (kind !== 'local' && !source.trim()) {
-      toast.error('请填写方案来源地址')
-      return
+      toast.info('未填写方案来源，将基于内置脚手架继续执行')
     }
     setBusy(true)
     try {
@@ -93,7 +92,7 @@ export function NewProjectForm({
   return (
     <div className="space-y-3.5">
       <div className="grid gap-3 sm:grid-cols-[1.4fr_1fr]">
-        <Field label="项目名称" htmlFor="project-name">
+        <Field label="项目名称" htmlFor="project-name" hint="必填">
           <Input
             id="project-name"
             value={name}
@@ -114,7 +113,9 @@ export function NewProjectForm({
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[11.5px] font-medium uppercase tracking-[0.06em] text-muted-foreground">方案与代码来源</span>
+          <span className="text-[11.5px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+            方案与代码来源 <span className="font-normal normal-case text-muted-foreground/50">可选</span>
+          </span>
           <Segmented<SourceKind>
             size="sm"
             value={kind}

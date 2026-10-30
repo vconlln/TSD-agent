@@ -43,7 +43,7 @@ export class BackendSupervisor {
     const lines = chunk.split(/\r?\n/).filter((l) => l.trim())
     for (const line of lines) {
       this.logTail.push(line.slice(0, 500))
-      if (process.env.NODE_ENV === 'development') console.log('[backend]', line)
+      if (!app.isPackaged) console.log('[backend]', line)
     }
     if (this.logTail.length > LOG_LIMIT) this.logTail = this.logTail.slice(-LOG_LIMIT)
   }
