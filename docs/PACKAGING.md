@@ -20,16 +20,34 @@ electron-builder
 
 ---
 
-## 1. 一键方式：GitHub Actions（推荐）
+## 1. 拿到 exe 的最快路径（GitHub Actions，零本地环境）
 
-仓库自带工作流模板 `ci/build-windows.yml`（GitHub Actions 只认 `.github/workflows/`，
-先安装一次）：
+GitHub Actions 只识别 `.github/workflows/` 下的文件，而本仓库的推送 token 缺少
+`workflow` 作用域，因此工作流先放在 `ci/` 作为模板，**安装一次**即可。
+
+### 方式 A：命令行（30 秒）
 
 ```bash
-gh auth refresh -s workflow          # 授予 workflow 权限（缺少时会拒绝推送）
+gh auth refresh -s workflow          # 授予 workflow 权限（浏览器确认一次）
 bash scripts/install-workflows.sh    # 复制 ci/*.yml → .github/workflows/
-git add .github/workflows && git commit -m "ci: enable GitHub Actions" && git push
+git add .github/workflows
+git commit -m "ci: enable GitHub Actions"
+git push
 ```
+
+### 方式 B：网页（无需命令行）
+
+1. 打开 <https://github.com/vconlln/TSD-agent>；
+2. **Add file → Create new file**，文件名填 `.github/workflows/build-windows.yml`；
+3. 把 `ci/build-windows.yml` 的内容整段粘贴进去 → **Commit changes**；
+4. （可选）同样方式添加 `ci/ci.yml`、`ci/build-linux.yml`。
+
+### 触发构建
+
+- 打开 **Actions → Build Windows Installer → Run workflow**；
+- 或推一个 tag：`git tag v1.0.0 && git push origin v1.0.0`（会自动创建 Release 并附上 exe）；
+- 约 8–12 分钟后，在 run 的 **Artifacts** 下载 `TSD-Agent-Windows-Installer`，
+  解压即得 `TSD-Agent-Setup-1.0.0.exe`。
 
 工作流内容：
 
