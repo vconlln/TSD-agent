@@ -30,7 +30,8 @@ win:
       arch:
         - x64
   icon: build/icon.ico
-  artifactName: ${productName}-Setup-${version}.${ext}
+  # 文件名不用 ${productName}（含空格）：GitHub Release 会把空格替换成点号
+  artifactName: TSD-Agent-Setup-${version}.${ext}
   requestedExecutionLevel: asInvoker
 
 nsis:
@@ -54,10 +55,10 @@ nsis:
   installerLanguages:
     - zh_CN
   displayLanguageSelector: false
-  artifactName: ${productName}-Setup-${version}.${ext}
+  artifactName: TSD-Agent-Setup-${version}.${ext}
 
 portable:
-  artifactName: ${productName}-Portable-${version}.${ext}
+  artifactName: TSD-Agent-Portable-${version}.${ext}
 
 linux:
   target:

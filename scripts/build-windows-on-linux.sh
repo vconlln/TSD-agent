@@ -22,7 +22,9 @@ TOOLS_DIR=${TOOLS_DIR:-$ROOT/build-tools}
 export WINEPREFIX=${WINEPREFIX:-$TOOLS_DIR/wineprefix}
 WINPY=${WINPY:-$TOOLS_DIR/win-python}
 export WINEDEBUG=${WINEDEBUG:--all}
-export TMPDIR=${TMPDIR:-/tmp}
+# 中间产物放在仓库内：某些环境 /tmp 是易失盘，编译到一半被清掉会产出坏安装包
+export TMPDIR=${TMPDIR:-$TOOLS_DIR/tmp}
+mkdir -p "$TMPDIR"
 
 # 镜像（国内网络建议保留默认值；能直连 GitHub 时可清空）
 export PIP_INDEX_URL=${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}

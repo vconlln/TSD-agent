@@ -135,7 +135,7 @@ npm run dist:win
 
 ```bash
 SKIP_RENDERER_BUILD=1 bash scripts/build-windows-on-linux.sh --verify
-> 完成：release/TSD Agent-Setup-1.0.0.exe（99 MiB）
+> 完成：release/TSD-Agent-Setup-1.0.0.exe（99 MiB）
 > 冒烟通过： http://127.0.0.1:34113 win32 1.0.0
 ```
 

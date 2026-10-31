@@ -212,7 +212,7 @@ npm run dist:win
 
 ```bash
 bash scripts/build-windows-on-linux.sh --verify
-# 产物：release/TSD Agent-Setup-1.0.0.exe，并在 Wine 里跑一遍打包产物冒烟自检
+# 产物：release/TSD-Agent-Setup-1.0.0.exe，并在 Wine 里跑一遍打包产物冒烟自检
 ```
 
 工具链与缓存都落在 `build-tools/`（已 gitignore）。原理与踩坑见
