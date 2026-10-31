@@ -18,6 +18,13 @@ class RunChannel:
         self._subscribers: list[asyncio.Queue[dict[str, Any] | None]] = []
         self.closed = False
         self._loop: asyncio.AbstractEventLoop | None = None
+        # 运行记录引用：步骤状态同时写回 run.json，刷新页面后进度不丢
+        self._run: dict[str, Any] | None = None
+        self._persist: Any = None
+
+    def attach_run(self, run: dict[str, Any], persist: Any) -> None:
+        self._run = run
+        self._persist = persist
 
     def bind_loop(self) -> None:
         try:
@@ -100,6 +107,25 @@ class RunChannel:
             if progress is None:
                 payload["progress"] = 100 if status == "done" else 0
         self.emit("step.status", step=key, data=payload)
+        run = self._run
+        if run is not None:
+            for step in run.get("steps") or []:
+                if step.get("key") != key:
+                    continue
+                step["status"] = status
+                for field in ("title", "detail", "progress", "metrics"):
+                    if payload.get(field) is not None:
+                        step[field] = payload[field]
+                if payload.get("startedAt"):
+                    step.setdefault("startedAt", payload["startedAt"])
+                if payload.get("finishedAt"):
+                    step["finishedAt"] = payload["finishedAt"]
+                break
+            if self._persist is not None:
+                try:
+                    self._persist(run)
+                except Exception:
+                    pass
 
     # ------------------------------------------------------------------
     async def subscribe(self, since: int = 0):

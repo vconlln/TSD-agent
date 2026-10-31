@@ -42,3 +42,6 @@ jobs:
 
       - name: Credential / Git / inline-AI end-to-end test
         run: python scripts/e2e/run_git_e2e.py
+
+      - name: Agent loop end-to-end test (tools / JSON fallback / sandbox)
+        run: python scripts/e2e/run_agent_e2e.py

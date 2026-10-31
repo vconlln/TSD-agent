@@ -203,8 +203,13 @@ npm run typecheck                        # 类型检查
 npm run build                            # 产物构建
 python scripts/e2e/run_e2e.py            # 升级流水线全链路（离线模式）
 python scripts/e2e/run_git_e2e.py        # W3 凭证 / Git 推送 / 编辑器 AI 全链路
+python scripts/e2e/run_agent_e2e.py      # 编码 Agent 循环（工具 / 验证 / JSON 降级 / 沙箱）
 npm run verify:package                   # 打包产物启动自检
 ```
+
+> 编码 Agent 只依赖标准库（`subprocess` / `asyncio` / `difflib`），
+> 不需要额外 PyInstaller hidden-import；只要 `server/tsd/agent_loop.py`、`toolbox.py`、
+> `repo_map.py` 被打进 `backend-dist/tsd-server`，安装版里就具备完整的 Agent 能力。
 
 安装包自测：
 

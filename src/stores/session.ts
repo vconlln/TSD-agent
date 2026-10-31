@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type {
   AgentEvent,
+  AgentTraceEntry,
   ChatMessage,
   CodeProposal,
   DiffPayload,
@@ -39,6 +40,7 @@ export interface ProjectRuntime {
   events: AgentEvent[]
   logs: LogLine[]
   chat: ChatMessage[]
+  trace: AgentTraceEntry[]
   documents?: Documents
   diff?: DiffPayload
   docsLoading: boolean
@@ -65,6 +67,7 @@ interface SessionState {
   discardProposal: (projectId: string, proposalId: string) => void
   clearChat: (projectId: string) => void
   subscribe: (projectId: string, runId: string) => void
+  replayTrace: (projectId: string, runId: string) => void
   handleEvent: (projectId: string, event: AgentEvent) => void
 }
 
@@ -77,6 +80,7 @@ const emptyRuntime = (projectId: string): ProjectRuntime => ({
   events: [],
   logs: [],
   chat: loadChat(projectId),
+  trace: [],
   docsLoading: false,
   diffLoading: false,
   trees: {},
@@ -178,6 +182,10 @@ export const useSessionStore = create<SessionState>((set, get) => {
       if (active) {
         patchRuntime(projectId, { activeRunId: active.id })
         get().subscribe(projectId, active.id)
+      } else {
+        // 已结束的运行：回放 agent.* 事件，让「Agent 轨迹」在重启后依然可查
+        const finished = rt?.runs?.find((r) => r.kind === 'upgrade' && r.status === 'done')
+        if (finished) get().replayTrace(projectId, finished.id)
       }
       patchRuntime(projectId, { hydrated: true })
     },
@@ -251,6 +259,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
         activeRunId: runId,
         events: [],
         logs: [],
+        trace: [],
       }))
       useProjectsStore.getState().patch(projectId, { status: 'running', targetVersion: input.targetVersion })
       get().subscribe(projectId, runId)
@@ -342,7 +351,10 @@ export const useSessionStore = create<SessionState>((set, get) => {
     subscribe: (projectId, runId) => {
       if (streams.has(runId)) return
       const rt = get().runtimes[projectId]
-      const since = rt?.events?.length ? rt.events[rt.events.length - 1].seq : 0
+      // seq 是「每个 run 各自从 0 开始」的，续传起点必须按 runId 过滤，
+      // 否则刚创建的对话 run 会用一个来自别的 run 的大 seq 去请求，事件全部被跳过（气泡永远「生成中」）。
+      const mine = rt?.events?.filter((event) => event.runId === runId) ?? []
+      const since = mine.length ? mine[mine.length - 1].seq : 0
       const handle = streamRunEvents(runId, {
         since,
         onEvent: (event) => {
@@ -365,6 +377,18 @@ export const useSessionStore = create<SessionState>((set, get) => {
       streams.set(runId, handle)
     },
 
+    replayTrace: (projectId, runId) => {
+      const runtime = get().runtimes[projectId]
+      if (!runtime || runtime.trace.length > 0) return
+      const handle = streamRunEvents(runId, {
+        since: 0,
+        onEvent: (event) => {
+          if (event.type.startsWith('agent.')) get().handleEvent(projectId, event)
+        },
+        onClose: () => handle.close(),
+      })
+    },
+
     handleEvent: (projectId, event) => {
       runToProject.set(event.runId, projectId)
       mutateRuntime(projectId, (rt) => {
@@ -372,6 +396,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
         let logs = rt.logs
         let runs = rt.runs
         let chat = rt.chat
+        let trace = rt.trace
 
         const patchRun = (fn: (run: Run) => Run) => {
           runs = runs.map((r) => (r.id === event.runId ? fn(r) : r))
@@ -439,6 +464,57 @@ export const useSessionStore = create<SessionState>((set, get) => {
             useProjectsStore.getState().patch(projectId, { status: 'failed', error: event.message })
             break
           }
+          case 'agent.thought': {
+            const text = String((event.data as { text?: string } | undefined)?.text ?? '').trim()
+            if (text) {
+              const entry: AgentTraceEntry = { kind: 'thought', id: `t-${event.seq}`, ts: event.ts, text }
+              trace = [...trace, entry].slice(-600)
+            }
+            break
+          }
+          case 'agent.tool': {
+            const data = (event.data ?? {}) as {
+              id?: string
+              tool?: string
+              args?: Record<string, unknown>
+              ok?: boolean
+              durationMs?: number
+              preview?: string
+              observation?: string
+            }
+            const traceEntry: AgentTraceEntry = {
+                kind: 'tool',
+                id: data.id || `tool-${event.seq}`,
+                ts: event.ts,
+                tool: String(data.tool || 'tool'),
+                args: data.args ?? {},
+                ok: data.ok !== false,
+                durationMs: Number(data.durationMs ?? 0),
+                preview: String(data.preview || ''),
+                observation: String(data.observation || ''),
+              }
+            trace = [...trace, traceEntry].slice(-600)
+            break
+          }
+          case 'agent.verify': {
+            const data = (event.data ?? {}) as {
+              command?: string
+              ok?: boolean
+              exitCode?: number
+              output?: string
+            }
+            const verifyEntry: AgentTraceEntry = {
+                kind: 'verify',
+                id: `verify-${event.seq}`,
+                ts: event.ts,
+                command: String(data.command || ''),
+                ok: data.ok !== false,
+                exitCode: data.exitCode,
+                output: String(data.output || ''),
+              }
+            trace = [...trace, verifyEntry].slice(-600)
+            break
+          }
           case 'chat.delta': {
             const delta = event.delta || (event.data?.delta as string) || ''
             const messageId = `a-${event.runId}`
@@ -487,7 +563,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
             break
         }
 
-        return { events, logs, runs, chat }
+        return { events, logs, runs, chat, trace }
       })
 
       if (event.type === 'run.done' || event.type === 'run.error') {

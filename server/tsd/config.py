@@ -31,6 +31,17 @@ DEFAULT_W3: dict[str, Any] = {
     "mode": "",
 }
 
+DEFAULT_AGENT: dict[str, Any] = {
+    # auto：优先 function calling，模型不支持时自动降级为 JSON 协议
+    # single：回到一次性生成（旧行为，适合只支持纯文本补全的模型）
+    "mode": "auto",
+    "maxSteps": 24,
+    "allowCommands": True,
+    "verify": True,
+    "deadlineSeconds": 900,
+    "maxObservationChars": 6000,
+}
+
 DEFAULT_GIT: dict[str, Any] = {
     # local | gitlab | github | generic
     "provider": "local",
@@ -46,6 +57,7 @@ DEFAULT_GIT: dict[str, Any] = {
 
 DEFAULTS: dict[str, Any] = {
     "engine": DEFAULT_ENGINE,
+    "agent": DEFAULT_AGENT,
     "w3": DEFAULT_W3,
     "git": DEFAULT_GIT,
     "concurrency": 2,
@@ -72,8 +84,10 @@ class SettingsStore:
                     engine = raw.pop("engine", {}) or {}
                     w3 = raw.pop("w3", {}) or {}
                     git = raw.pop("git", {}) or {}
+                    agent = raw.pop("agent", {}) or {}
                     data.update({k: v for k, v in raw.items() if k in DEFAULTS})
                     data["engine"] = {**DEFAULT_ENGINE, **{k: v for k, v in engine.items() if k in DEFAULT_ENGINE}}
+                    data["agent"] = {**DEFAULT_AGENT, **{k: v for k, v in agent.items() if k in DEFAULT_AGENT}}
                     data["w3"] = {**DEFAULT_W3, **{k: v for k, v in w3.items() if k in DEFAULT_W3}}
                     data["git"] = {**DEFAULT_GIT, **{k: v for k, v in git.items() if k in DEFAULT_GIT}}
         except Exception:
@@ -103,11 +117,23 @@ class SettingsStore:
     def git(self) -> dict[str, Any]:
         return dict(self._data["git"])
 
+    def agent(self) -> dict[str, Any]:
+        return dict(self._data["agent"])
+
     def public(self) -> dict[str, Any]:
         engine = self._data["engine"]
         w3 = self._data["w3"]
         git = self._data["git"]
+        agent = self._data["agent"]
         return {
+            "agent": {
+                "mode": agent["mode"],
+                "maxSteps": agent["maxSteps"],
+                "allowCommands": agent["allowCommands"],
+                "verify": agent["verify"],
+                "deadlineSeconds": agent["deadlineSeconds"],
+                "maxObservationChars": agent["maxObservationChars"],
+            },
             "w3": {
                 "serverUrl": w3["serverUrl"],
                 "loginPath": w3["loginPath"],
@@ -160,6 +186,10 @@ class SettingsStore:
 
     def update(self, patch: dict[str, Any]) -> dict[str, Any]:
         with self._lock:
+            if isinstance(patch.get("agent"), dict):
+                for key, value in patch["agent"].items():
+                    if key in DEFAULT_AGENT and value is not None:
+                        self._data["agent"][key] = value
             if isinstance(patch.get("w3"), dict):
                 for key, value in patch["w3"].items():
                     if key in DEFAULT_W3:

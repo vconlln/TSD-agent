@@ -33,6 +33,12 @@ TSD Agent 把这条链路交给一个自动化的 Agent 流水线，你只需要
 ## 🚀 核心能力
 
 - **一条龙流水线**：解析页面 → 下载代码 → 分析结构 → 生成方案 → 升级代码 → 计算差异，全部由 Agent 自动串联。
+- **真·编码 Agent（不是一次性生成）**：升级那一步走的是「思考 → 调工具 → 看结果 → 再决定」的循环——
+  Agent 自己 `read_file` / `grep` 定位代码、用 `edit_file` 做最小改动、跑测试验证、失败读报错继续修，
+  最多 24 步（可调），带步数 / 时长 / 上下文三重预算，随时可停。
+  设计说明与移植指南见 [docs/AGENT-DESIGN.md](docs/AGENT-DESIGN.md)。
+- **Agent 轨迹可见**：项目页「Agent」标签实时展示每一段思考、每一次工具调用（参数 / 耗时 / 成败 / 输出）、
+  每一次验证结果，刷新后按 run 重放，不是黑盒。
 - **实时可观测**：7 个步骤带进度与耗时；SSE 推送日志与事件，运行中可随时停止，刷新页面可续传事件流。
 - **差异即交付物**
   - 方案差异：按章节对比新增 / 修改 / 删除，支持整篇统一差异视图。
@@ -89,20 +95,26 @@ TSD Agent 把这条链路交给一个自动化的 Agent 流水线，你只需要
     <td align="center"><sub>设置 · W3 登录取凭证 + 模型清单</sub></td>
   </tr>
   <tr>
+    <td width="50%"><img src="docs/screenshots/13-agent-tab.png" alt="Agent 轨迹时间线" /></td>
     <td width="50%"><img src="docs/screenshots/04-code.png" alt="代码浏览与编辑" /></td>
-    <td width="50%"><img src="docs/screenshots/07-theme-panel.png" alt="外观面板" /></td>
   </tr>
   <tr>
+    <td align="center"><sub>Agent 轨迹 · 思考 / 工具调用 / 验证结果</sub></td>
     <td align="center"><sub>Monaco 编辑器 · 原版 / 升级版切换</sub></td>
-    <td align="center"><sub>外观面板 · 7 套主题 / 密度 / 圆角 / 特效</sub></td>
   </tr>
   <tr>
+    <td width="50%"><img src="docs/screenshots/07-theme-panel.png" alt="外观面板" /></td>
     <td width="50%"><img src="docs/screenshots/06-chat.png" alt="对话式修改" /></td>
-    <td width="50%"><img src="docs/screenshots/08-workbench-light.png" alt="浅色 + 深海蓝主题" /></td>
   </tr>
   <tr>
+    <td align="center"><sub>外观面板 · 7 套主题 / 密度 / 圆角 / 特效</sub></td>
     <td align="center"><sub>对话修改 · 可审阅补丁，一键应用</sub></td>
-    <td align="center"><sub>浅色模式 + 深海蓝</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/08-workbench-light.png" alt="浅色 + 深海蓝主题" /></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><sub>浅色模式 + 深海蓝（同一套组件，仅切换 CSS 变量）</sub></td>
   </tr>
 </table>
 
@@ -239,7 +251,12 @@ npm run verify:package              # 自检打包产物：渲染进程 + 内置
 ```
 
 - **前端状态**：SSE 事件被归约为 `Run` 与 `Step` 状态（`src/stores/session.ts`），断线自动从 `seq` 续传。
-- **后端流水线**：`server/tsd/pipeline.py`，每步向事件通道写 `step.status` / `log` / `artifact`。
+- **后端流水线**：`server/tsd/pipeline.py`，每步向事件通道写 `step.status` / `log` / `artifact`，
+  并把步骤状态回写 `runs/<id>.json`（刷新页面进度不丢）。
+- **编码 Agent**：`server/tsd/agent_loop.py`（决策循环 / 双协议 / 验证 / 上下文压缩）+
+  `server/tsd/toolbox.py`（9 个工具 + 路径沙箱 + 命令白名单）+
+  `server/tsd/repo_map.py`（仓库地图 / AGENTS.md / 测试命令探测）。
+  协议与调优见 [docs/AGENT-DESIGN.md](docs/AGENT-DESIGN.md)。
 - **差异**：后端用 `difflib` 生成统一补丁（每次请求可缓存），前端 `src/lib/diff.ts` 解析成行、配对并做词级 diff。
 - **可替换后端**：契约见 [docs/API.md](docs/API.md)；设置里切「外部后端」填地址即可接管。
 
@@ -295,13 +312,21 @@ TSD-agent/
 ```bash
 npm run typecheck        # 全量 TypeScript 检查（渲染进程 + 主进程）
 npm run build            # 生产构建
-npm run e2e:all          # 端到端：升级流水线 + 凭证 / Git / 编辑器 AI
+npm run e2e:all          # 端到端：升级流水线 + 凭证 / Git / 编辑器 AI + Agent 循环
 npm run seed:demo        # 生成一份演示工作区（离线跑通，可直接用 GUI 打开）
 npm run screenshots      # 无头 Electron 渲染截图 + DOM 布局自检
 ```
 
-E2E 不需要 API Key，使用离线模式跑通全链路，覆盖 30+ 断言（含 SSE 事件、差异补丁、
-目录树、文件读取、补丁应用、导出与删除）。
+E2E 不需要 API Key：常规链路走离线模式，Agent 循环用 `scripts/e2e/mock_llm.py` 提供脚本化的假模型，
+因此在内网、离线、CI 里都能跑。合计 90+ 断言：
+
+| 套件 | 断言数 | 覆盖 |
+| --- | --- | --- |
+| `npm run e2e` | 33 | SSE 事件、差异补丁、目录树、文件读取、补丁应用、导出与删除 |
+| `npm run e2e:git` | 37 | W3 凭证、模型清单、Git 检索/克隆/对比/推送、编辑器内 AI |
+| `npm run e2e:agent` | 23 | 工具协议、验证循环、JSON 降级、沙箱拦截、步骤持久化 |
+
+打包产物另有一层自检：`npm run verify:package`。
 
 ---
 
@@ -309,6 +334,23 @@ E2E 不需要 API Key，使用离线模式跑通全链路，覆盖 30+ 断言（
 
 **Q：安装包里的后端在哪？启动慢怎么办？**
 A：`resources/backend/tsd-server/tsd-server.exe`（PyInstaller onedir）。onedir 比 onefile 启动快得多，主进程会并行挑选空闲端口并轮询 `/api/health`，通常 1–2 秒内就绪。
+
+**Q：觉得 Agent 不够聪明，改了等于没改？**
+A：先看「Agent」标签的时间线定位问题，再按顺序调：
+① 在项目根放一份 `AGENTS.md`（写清结构、规范、测试命令）——收益最高；
+② 换更强的模型（Agent 模式对模型能力的敏感度远高于一次性生成）；
+③ 把任务描述改窄（一次只做一件事）；
+④ 调大 `设置 → 编码 Agent` 里的「最大步数」，并确认「允许运行验证命令」是开的。
+完整诊断与调优清单见 [docs/AGENT-DESIGN.md](docs/AGENT-DESIGN.md)。
+
+**Q：内网模型不支持 function calling（tools）怎么办？**
+A：会自动降级到 JSON 协议（要求模型只输出一个 JSON 对象），工具、验证、沙箱逻辑完全一致，
+只是「怎么拿到下一步决策」不同。也可以在设置里手动把模式固定为 `json`。
+
+**Q：Agent 会不会把项目改坏？**
+A：它只能在版本目录内改动：路径 `../` 越界会被拒、命令走白名单（`git push`/`sudo`/`rm -rf` 直接拦），
+单条命令 600 秒超时，输出只回尾部。每次改动都通过 `edit_file` 精确串替换，
+差异面板能看到逐行变化，不满意直接丢弃版本目录即可。
 
 **Q：没有 API Key 能用吗？**
 A：能。离线模式会生成结构完整的 UPDATE.md、版本号提升、CHANGELOG / UPGRADE_NOTES 等改动，链路和差异视图都可验证；接上模型后同样的流程会产出真实重构。

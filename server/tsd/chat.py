@@ -130,6 +130,7 @@ class ChatAgent:
     # ------------------------------------------------------------------
     async def run(self, project: dict[str, Any], run: dict[str, Any], message: str) -> None:
         channel = self._channel(run["id"])
+        channel.attach_run(run, self.store.save_run)
         run["status"] = "running"
         self.store.save_run(run)
         channel.emit("run.status", data={"status": "running"})

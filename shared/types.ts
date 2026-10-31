@@ -71,6 +71,30 @@ export interface Run {
 
 export type EventLevel = 'debug' | 'info' | 'warn' | 'error' | 'success'
 
+/** Agent 轨迹：模型思考、工具调用、验证结果 */
+export type AgentTraceEntry =
+  | { kind: 'thought'; id: string; ts: number; text: string }
+  | {
+      kind: 'tool'
+      id: string
+      ts: number
+      tool: string
+      args: Record<string, unknown>
+      ok: boolean
+      durationMs: number
+      preview: string
+      observation: string
+    }
+  | {
+      kind: 'verify'
+      id: string
+      ts: number
+      command: string
+      ok: boolean
+      exitCode?: number
+      output: string
+    }
+
 /** Stream event. The payload for each event type lives in data. */
 export interface AgentEvent {
   seq: number
@@ -86,6 +110,9 @@ export interface AgentEvent {
     | 'chat.delta'
     | 'chat.message'
     | 'chat.proposal'
+    | 'agent.thought'
+    | 'agent.tool'
+    | 'agent.verify'
     | 'run.metrics'
     | 'run.done'
     | 'run.error'
@@ -192,6 +219,16 @@ export interface EngineSettings {
   offlineMode: boolean
 }
 
+export interface AgentSettings {
+  /** auto：优先 function calling，不支持时自动降级 JSON 协议；single：一次性生成 */
+  mode: 'auto' | 'tools' | 'json' | 'single'
+  maxSteps: number
+  allowCommands: boolean
+  verify: boolean
+  deadlineSeconds: number
+  maxObservationChars: number
+}
+
 export interface W3Settings {
   serverUrl: string
   loginPath: string
@@ -213,6 +250,7 @@ export interface GitSettings {
 
 export interface SettingsPatch {
   engine?: Partial<EngineSettings> & { apiKey?: string }
+  agent?: Partial<AgentSettings>
   w3?: Partial<W3Settings>
   git?: Partial<Omit<GitSettings, 'tokenSet'>> & { token?: string }
   workspace?: string
@@ -223,6 +261,7 @@ export interface SettingsPatch {
 
 export interface AppSettings {
   engine: EngineSettings
+  agent?: AgentSettings
   w3?: W3Settings
   git?: GitSettings
   workspace: string

@@ -7,6 +7,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from .agent_loop import AgentConfig, CodeAgent
 from .config import SettingsStore
 from .diffing import _patch_for, compute_diffs, plan_diff
 from .events import EventHub, RunChannel
@@ -390,6 +391,7 @@ class UpgradePipeline:
         reference_url: str | None = None,
     ) -> None:
         channel = self._channel(run["id"])
+        channel.attach_run(run, self.store.save_run)
         run["status"] = "running"
         run["prompt"] = prompt
         self.store.save_run(run)
@@ -569,8 +571,58 @@ class UpgradePipeline:
             channel.log(f"已复制 {copied} 个文件到 v{project['targetVersion']} 目录")
 
             edits: list[dict[str, Any]] = []
-            if online and self.llm:
-                channel.log("请求模型产出代码改动…")
+            written = 0
+            agent_result: dict[str, Any] | None = None
+            agent_cfg = self.settings.agent()
+            agent_mode = str(agent_cfg.get("mode") or "auto")
+
+            if online and self.llm and agent_mode != "single":
+                channel.log("进入 Agent 模式：读代码 → 改代码 → 跑验证（每步可见）")
+                try:
+                    agent = CodeAgent(
+                        self.llm,
+                        channel=channel,
+                        config=AgentConfig.from_dict(agent_cfg),
+                        is_cancelled=lambda: bool(run.get("cancelRequested")),
+                    )
+                    task = (
+                        f"项目「{project['name']}」当前版本 v{project.get('baseVersion')}，"
+                        f"目标版本 v{project.get('targetVersion')}。\n"
+                        f"请按照升级方案改造当前目录里的代码。核心需求：\n{prompt.strip()}\n\n"
+                        "要求：先读懂现有实现再改；保持既有代码风格与接口兼容；"
+                        "改完运行测试/类型检查；最后用 finish 总结改动。"
+                    )
+                    agent_result = await agent.run(task, target_dir, plan=update_doc)
+                    written = len(agent_result["changedFiles"])
+                    if written:
+                        channel.step_status(
+                            "code",
+                            status="running",
+                            detail=(
+                                f"Agent 修改 {written} 个文件 · {agent_result['toolCalls']} 次工具调用"
+                                + (" · 验证通过" if agent_result.get("verified") else "")
+                            ),
+                            progress=95,
+                            metrics={
+                                "工具调用": agent_result["toolCalls"],
+                                "改动文件": written,
+                            },
+                        )
+                        channel.log(
+                            f"Agent 完成：{agent_result['steps']} 步 / {agent_result['toolCalls']} 次工具调用，"
+                            f"修改 {written} 个文件"
+                            + ("，验证通过" if agent_result.get("verified") else "，未运行验证"),
+                            "success",
+                        )
+                    else:
+                        channel.log("Agent 未产生改动，回退到离线规则", "warn")
+                except LLMError as exc:
+                    channel.log(f"Agent 调用失败，回退一次性生成：{exc}", "warn")
+                except Exception as exc:  # noqa: BLE001
+                    channel.log(f"Agent 执行异常，回退一次性生成：{exc}", "warn")
+
+            if written == 0 and online and self.llm:
+                channel.log("请求模型一次性产出代码改动…")
                 try:
                     payload = await self._llm_code_edits(project, prompt, update_doc, inventory)
                     edits = payload.get("edits", [])
@@ -580,17 +632,24 @@ class UpgradePipeline:
                         channel.log("模型未返回改动，使用离线规则", "warn")
                 except LLMError as exc:
                     channel.log(f"模型改动请求失败：{exc}", "warn")
-            if not edits:
+            if written == 0 and not edits:
                 edits = self.offline_code_edits(project, target_dir, prompt, update_doc, inventory)
                 channel.log(f"应用离线规则生成 {len(edits)} 个文件改动")
 
-            written = self._write_edits(target_dir, edits, channel)
-            code_notes = [str(e.get("path")) for e in edits if e.get("path")]
+            if written == 0:
+                written = self._write_edits(target_dir, edits, channel)
+                code_notes = [str(e.get("path")) for e in edits if e.get("path")]
+            else:
+                code_notes = list(agent_result["changedFiles"]) if agent_result else []
+
             channel.step_status(
                 "code",
                 status="done",
-                detail=f"写入 {written} 个文件",
-                metrics={"改动文件": written},
+                detail=f"写入 {written} 个文件" + (" · Agent 模式" if agent_result else ""),
+                metrics={
+                    "改动文件": written,
+                    **({"工具调用": agent_result["toolCalls"]} if agent_result else {}),
+                },
             )
             channel.log(f"代码升级完成，共写入 {written} 个文件", "success")
             self._check_cancel(run)

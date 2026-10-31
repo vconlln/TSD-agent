@@ -25,6 +25,7 @@ import { Badge, Button, Field, Input, StatusDot, Segmented } from '@/components/
 import { Select, Slider, Switch, Tooltip } from '@/components/ui/overlays'
 import { PageHeader, SectionTitle } from '@/components/common/PageHeader'
 import { W3Card } from '@/components/settings/W3Card'
+import { AgentCard } from '@/components/settings/AgentCard'
 import { GitSettingsCard } from '@/components/settings/GitSettingsCard'
 import { cn } from '@/lib/utils'
 
@@ -262,6 +263,8 @@ export function SettingsPage() {
             </div>
           )}
         </Card>
+
+        {settings ? <AgentCard settings={settings} onSaved={setSettings} /> : null}
 
         <Card>
           <SectionTitle

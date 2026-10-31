@@ -47,6 +47,14 @@
     "timeoutSec": 300,
     "offlineMode": false
   },
+  "agent": {
+    "mode": "auto",
+    "maxSteps": 24,
+    "allowCommands": true,
+    "verify": true,
+    "deadlineSeconds": 900,
+    "maxObservationChars": 6000
+  },
   "workspace": "/path/to/workspace",
   "concurrency": 2,
   "autoApplyChatEdits": false,
@@ -55,6 +63,17 @@
 ```
 
 > 出于安全考虑**永远不要**把 API Key 回传给前端，只返回 `apiKeySet: boolean`。
+
+`agent` 为编码 Agent 运行参数（详见 [AGENT-DESIGN.md](AGENT-DESIGN.md)）：
+
+| 字段 | 取值 | 说明 |
+| --- | --- | --- |
+| `mode` | `auto` \| `tools` \| `json` \| `single` | `auto` 先试 function calling，失败降级 JSON；`single` 退回一次性生成 |
+| `maxSteps` | 2–80 | 决策循环步数上限 |
+| `allowCommands` | bool | 是否允许 Agent 执行命令（关掉后只能读改文件） |
+| `verify` | bool | 有改动时是否跑验证循环 |
+| `deadlineSeconds` | 60–7200 | 单次 Agent 任务时长预算 |
+| `maxObservationChars` | 1000–20000 | 单条工具输出回灌上限（超出截尾） |
 
 ### `PUT /api/settings`
 
@@ -180,6 +199,10 @@ interface Run {
 | `diff` | 计算差异 |
 | `finalize` | 整理结果 |
 
+> `code` 步骤在启用编码 Agent 时会带上 `metrics`：`{"工具调用": n, "改动文件": m}`。
+> 每次 `step.status` 都会同步写回 `runs/<runId>.json`，所以 `GET /api/runs/{runId}`
+> 拿到的 `steps` 是最新的——前端刷新页面后进度不会回零。
+
 对话运行的步骤：`context` / `reason` / `patch`。
 
 ### `POST /api/projects/{id}/run`
@@ -232,6 +255,9 @@ interface Run {
 
 ### `GET /api/runs/{runId}/events?since={seq}`
 
+> `since` 必须**按 runId 隔离**：每个 run 的 `seq` 都从 0 重新开始。
+> 前端若用「项目级最后一条 seq」做续传，切换 run 时会丢事件（流式聊天曾经踩过这个坑）。
+
 - `Content-Type: text/event-stream`
 - 每帧：`data: {JSON}\n\n`
 - 以 `since` 回放历史事件（`seq > since`），随后增量推送
@@ -250,6 +276,7 @@ interface AgentEvent {
     | 'run.status' | 'step.status' | 'log'
     | 'artifact' | 'plan.ready' | 'diff.ready'
     | 'chat.delta' | 'chat.message' | 'chat.proposal'
+    | 'agent.thought' | 'agent.tool' | 'agent.verify'
     | 'run.metrics' | 'run.done' | 'run.error'
   step?: string         // 关联步骤 key
   level?: 'debug' | 'info' | 'warn' | 'error' | 'success'
@@ -269,6 +296,9 @@ interface AgentEvent {
 | `chat.delta` | — | 用 `delta` 字段，增量文本 |
 | `chat.message` | `{ content, proposal?, summary?, error? }` | 一条完整的助手消息 |
 | `chat.proposal` | `CodeProposal` | 单独推送补丁建议（可与 chat.message 二选一） |
+| `agent.thought` | `{ text, ts }` | Agent 的一段思考（UI 渲染成时间线气泡） |
+| `agent.tool` | `{ name, args, ok, ms, observation, ts }` | 一次工具调用及其结果；`observation` 已按 `maxObservationChars` 截断 |
+| `agent.verify` | `{ ok, command, rounds, output, ts }` | 验证循环结果 |
 | `run.metrics` | `{ usage, model }` | token 用量等 |
 | `run.done` | `{ summary, status? }` | 成功结束（`status: "cancelled"` 表示取消） |
 | `run.error` | — | 用 `message`，前端把运行标记为失败 |

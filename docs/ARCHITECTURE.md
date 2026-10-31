@@ -91,7 +91,7 @@ fetch     抓取方案 URL → html_to_markdown → PLAN.md（同时发现代码
 download  git clone / zip 下载 / 本地复制 → source/（失败则生成脚手架）
 analyze   walk_files → 语言分布、关键文件、内容节选 → inventory
 update    LLM 或离线模板 → UPDATE.md
-code      copy_tree(source → v{target}) → LLM/离线改动写入
+code      copy_tree(source → v{target}) → 编码 Agent（工具循环 + 验证）→ 降级为一次性生成 → 离线改动
 diff      difflib 生成统一补丁 + 章节级方案差异 → diff.json
 finalize  更新 project.json（状态、统计）+ run.done
 ```
@@ -105,11 +105,39 @@ finalize  更新 project.json（状态、统计）+ run.done
 - 页面解析失败 → 记录错误并继续；
 - 代码下载失败 → 生成最小脚手架，保证后续步骤可执行。
 
+### 编码 Agent
+
+`code` 这一步是整条流水线里唯一「需要模型真的动手改代码」的阶段，因此走的是
+**智能体循环**而不是一次性生成（`server/tsd/agent_loop.py`）：
+
+```
+任务简报 = 升级任务 + UPDATE.md + AGENTS.md 等约定 + 仓库地图
+  ↓
+while 未完成 & 未超预算：  LLM → thought + tool_call → 执行 → 观察回灌
+  ↓
+验证循环：run_tests 失败 → 把错误尾部回灌 → 继续修（最多 2 轮）
+```
+
+- **工具**（`toolbox.py`）：`list_files / read_file / grep / edit_file / write_file / delete_file /
+  run_command / run_tests / finish`，全部受路径沙箱 + 命令白名单约束。
+- **仓库感知**（`repo_map.py`）：符号索引 + `AGENTS.md`/`CLAUDE.md`/`.cursorrules` +
+  自动探测测试命令（npm / pytest / go / cargo / mvn）。
+- **双协议**：优先 function calling，服务端不支持时自动降级为「只输出一个 JSON 对象」的文本协议。
+- **预算**：`maxSteps` / `deadlineSeconds` / `maxObservationChars` 三重上限，
+  上下文超过 120k 字符时丢弃最早的 observation（保留摘要）。
+- **可观测**：每步发 `agent.thought` / `agent.tool` / `agent.verify`，
+  前端 `src/components/project/AgentTab.tsx` 渲染成时间线。
+- **兜底**：Agent 一个文件都没改时，退回一次性生成；再不行走离线启发式，流水线不空转。
+
+设计取舍与移植到其它后端的清单见 [AGENT-DESIGN.md](AGENT-DESIGN.md)。
+
 ### LLM 适配层
 
 `server/tsd/llm.py` 只依赖 OpenAI 兼容的 `/chat/completions`：
 `baseUrl + /chat/completions`，`Authorization: Bearer <key>`。
-支持 `response_format: json_object`（不支持时自动回退并在文本中提取 JSON）。
+支持 `response_format: json_object`（不支持时自动回退并在文本中提取 JSON）；
+Agent 模式另有 `chat_tools(messages, tools)`，服务端不认 `tools` 时抛 `LLMError("tools-unsupported")`
+触发协议降级。回环地址（127.0.0.1/localhost）会强制 `trust_env=False`，避免系统代理劫持本地请求。
 
 ---
 
@@ -169,6 +197,8 @@ finalize  更新 project.json（状态、统计）+ run.done
 
 | 想做的事 | 改哪里 |
 | --- | --- |
+| Agent 更聪明 / 换更强模型 | `docs/AGENT-DESIGN.md` 的调优清单；代码在 `agent_loop.py` / `toolbox.py` |
+| Agent 加新工具 | `server/tsd/toolbox.py` 里加 `_tool_xxx` + `tool_specs()` 里补 schema |
 | W3 对接真实网关 | `server/tsd/auth.py` 的 `serverUrl/loginPath/modelsPath`，或 `PUT /api/settings` |
 | Git 服务换协议 | `server/tsd/gitops.py` 的 `_remote_repos` |
 | 编辑器 AI 提示词 | `server/tsd/agent_edit.py` 的 `SYSTEM_EDIT` / `SYSTEM_EXPLAIN` |

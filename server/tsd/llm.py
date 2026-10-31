@@ -39,25 +39,9 @@ class LLMClient:
         return f"{self.base_url}/chat/completions"
 
     # ------------------------------------------------------------------
-    async def chat(
-        self,
-        messages: list[dict[str, str]],
-        *,
-        max_tokens: int | None = None,
-        temperature: float | None = None,
-        json_mode: bool = False,
-    ) -> str:
+    async def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
         if not self.available():
             raise LLMError("未配置可用的模型服务")
-        payload: dict[str, Any] = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": self.temperature if temperature is None else temperature,
-            "max_tokens": max_tokens or self.max_tokens,
-            "stream": False,
-        }
-        if json_mode:
-            payload["response_format"] = {"type": "json_object"}
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
@@ -78,15 +62,94 @@ class LLMClient:
         except Exception as exc:  # noqa: BLE001
             raise LLMError("模型返回的不是 JSON") from exc
 
-        choice = (data.get("choices") or [{}])[0]
-        content = (choice.get("message") or {}).get("content") or ""
         usage = data.get("usage") or {}
         if usage:
             self.usage["inputTokens"] = self.usage.get("inputTokens", 0) + int(usage.get("prompt_tokens") or 0)
             self.usage["outputTokens"] = self.usage.get("outputTokens", 0) + int(usage.get("completion_tokens") or 0)
+        return data
+
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        json_mode: bool = False,
+    ) -> str:
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": self.temperature if temperature is None else temperature,
+            "max_tokens": max_tokens or self.max_tokens,
+            "stream": False,
+        }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
+        data = await self._post(payload)
+        choice = (data.get("choices") or [{}])[0]
+        content = (choice.get("message") or {}).get("content") or ""
         if not content.strip():
             raise LLMError("模型返回了空内容")
         return content
+
+    async def chat_tools(
+        self,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> dict[str, Any]:
+        """原生 function calling。
+
+        返回 {content, tool_calls, raw}。若服务端不支持 tools 参数（部分自建
+        网关会直接 400），抛出 LLMError("tools-unsupported") 供上层回退到
+        JSON 协议，而不是把整个任务判死。
+        """
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": self.temperature if temperature is None else temperature,
+            "max_tokens": max_tokens or self.max_tokens,
+            "stream": False,
+            "tools": tools,
+            "tool_choice": "auto",
+        }
+        try:
+            data = await self._post(payload)
+        except LLMError as exc:
+            message = str(exc).lower()
+            if "tools" in message or "tool_choice" in message or "400" in message:
+                raise LLMError("tools-unsupported") from exc
+            raise
+        choice = (data.get("choices") or [{}])[0]
+        message = choice.get("message") or {}
+        tool_calls = message.get("tool_calls") or []
+        normalized: list[dict[str, Any]] = []
+        for call in tool_calls:
+            function = call.get("function") or {}
+            raw_args = function.get("arguments")
+            if isinstance(raw_args, str):
+                try:
+                    args = json.loads(raw_args or "{}")
+                except Exception:
+                    args = {"__raw": raw_args}
+            elif isinstance(raw_args, dict):
+                args = raw_args
+            else:
+                args = {}
+            normalized.append(
+                {
+                    "id": call.get("id") or f"call_{len(normalized)}",
+                    "name": function.get("name") or "",
+                    "arguments": args if isinstance(args, dict) else {},
+                }
+            )
+        return {
+            "content": message.get("content") or "",
+            "tool_calls": normalized,
+            "raw": message,
+        }
 
     # ------------------------------------------------------------------
     @staticmethod

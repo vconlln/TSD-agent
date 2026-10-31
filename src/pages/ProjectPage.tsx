@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowUpRight,
+  Bot,
   Code2,
   Copy,
   ExternalLink,
@@ -33,15 +34,17 @@ import { PlanTab } from '@/components/project/PlanTab'
 import { CodeTab } from '@/components/project/CodeTab'
 import { DiffTab } from '@/components/project/DiffTab'
 import { GitTab } from '@/components/project/GitTab'
+import { AgentTab } from '@/components/project/AgentTab'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 
-type Tab = 'overview' | 'plan' | 'code' | 'diff' | 'git' | 'chat'
+type Tab = 'overview' | 'plan' | 'code' | 'diff' | 'agent' | 'git' | 'chat'
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: '概览', icon: LayoutDashboard },
   { id: 'plan', label: '方案', icon: FileText },
   { id: 'code', label: '代码', icon: Code2 },
   { id: 'diff', label: '差异', icon: GitCompareArrows },
+  { id: 'agent', label: 'Agent', icon: Bot },
   { id: 'git', label: '仓库', icon: GitBranch },
   { id: 'chat', label: '对话', icon: MessageSquare },
 ]
@@ -320,6 +323,8 @@ export function ProjectPage() {
                   p.set('path', path)
                   setParams(p, { replace: true })
                 }} />
+              ) : tab === 'agent' ? (
+                <AgentTab project={project} />
               ) : tab === 'git' ? (
                 <GitTab project={project} />
               ) : (

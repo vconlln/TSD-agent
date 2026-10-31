@@ -139,8 +139,10 @@ async function main() {
       data.mainHeight > 400
     report.checks.push({ label, ok, ...data })
   }
+  const SHOT_WIDTH = 1440 // 2x DPR 渲染后归一化到 1440，保证 README 里体积与清晰度平衡
   const shot = async (name) => {
-    const image = await win.capturePage()
+    let image = await win.capturePage()
+    if (image.getSize().width > SHOT_WIDTH) image = image.resize({ width: SHOT_WIDTH, quality: 'best' })
     const file = path.join(OUT, name + '.png')
     fs.writeFileSync(file, image.toPNG())
     const size = image.getSize()
@@ -199,15 +201,20 @@ async function main() {
     return Boolean(button)
   })()`)
   if (sent) {
-    for (let attempt = 0; attempt < 40; attempt++) {
-      await sleep(500)
-      const done = await evalJs(
-        "document.body.innerText.includes('代码修改建议') || document.body.innerText.includes('离线模式')",
-      )
-      if (done) break
+    // 流式回复：先确认生成开始，再等它结束（生成中 / 正在理解需求 / Agent 正在工作 全部消失）
+    const STREAMING =
+      "document.body.innerText.includes('生成中') || document.body.innerText.includes('正在理解需求') || document.body.innerText.includes('Agent 正在工作')"
+    let started = false
+    for (let attempt = 0; attempt < 100; attempt++) {
+      await sleep(400)
+      const streaming = await evalJs(STREAMING)
+      if (streaming) started = true
+      if (started && !streaming) break
+      if (!started && attempt > 15) break // 极快的离线回复：没有过渡态
+      if (attempt === 80) await audit('chat-streaming')
     }
   }
-  await sleep(1200)
+  await sleep(1500)
   await audit('chat')
   await shot('06-chat')
 
@@ -234,6 +241,11 @@ async function main() {
   await load('/project/' + gitProject.id + '?tab=git', 1500)
   await audit('git-tab')
   await shot('10-git-tab')
+
+  // Agent 轨迹（回放已完成运行的 agent.* 事件）
+  await load('/project/' + gitProject.id + '?tab=agent', 2200)
+  await audit('agent-tab')
+  await shot('13-agent-tab')
 
   await load('/project/' + gitProject.id + '?tab=code&side=target&path=src/index.ts', 3200)
   // 编辑器头部（含「修改」按钮）要等文件内容与 Monaco 就绪，点击需要重试

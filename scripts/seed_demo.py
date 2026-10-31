@@ -111,6 +111,23 @@ def start_static(serve_dir: Path) -> tuple[ThreadingHTTPServer, int]:
     return server, port
 
 
+MOCK_LLM_DEFAULT = "http://127.0.0.1:8799/v1"
+
+
+def mock_llm_base_url() -> str:
+    """解析 TSD_DEMO_MOCK_LLM：可以是地址，也可以是开关。"""
+    raw = (os.environ.get("TSD_DEMO_MOCK_LLM") or "").strip()
+    if not raw:
+        return ""
+    if raw.lower() in ("1", "true", "yes", "on"):
+        return MOCK_LLM_DEFAULT
+    if not raw.startswith("http"):
+        raise SystemExit(
+            "TSD_DEMO_MOCK_LLM 需要是 http(s) 地址（如 " + MOCK_LLM_DEFAULT + "），当前：" + raw
+        )
+    return raw.rstrip("/")
+
+
 async def seed(workspace: Path) -> dict:
     for key in list(os.environ):
         if "proxy" in key.lower():
@@ -129,6 +146,28 @@ async def seed(workspace: Path) -> dict:
 
     url = f"http://127.0.0.1:{port}/index.html"
     result: dict[str, object] = {}
+
+    # 先配置推理引擎与 Agent 模式，后面的流水线才会走 Agent 循环
+    # TSD_DEMO_MOCK_LLM 可以是一个完整地址（http://127.0.0.1:8799/v1），
+    # 也可以是任意真值开关（1/true/yes），此时用默认本地 mock 地址。
+    mock_llm = mock_llm_base_url()
+    if mock_llm:
+        settings.update(
+            {
+                "engine": {
+                    "baseUrl": mock_llm,
+                    "model": "mock-edit",
+                    "apiKey": "mock-api-key",
+                    "offlineMode": False,
+                },
+                "agent": {
+                    "mode": "auto",
+                    "maxSteps": 16,
+                    "allowCommands": True,
+                    "verify": True,
+                },
+            }
+        )
 
     try:
         project = store.create("订单中心", url, "page", "1.5.0", "订单创建、状态流转与支付回调服务")
@@ -159,20 +198,9 @@ async def seed(workspace: Path) -> dict:
         hub.create(git_run["id"])
         await pipeline.run(git_project, git_run, git_run["prompt"], "1.3.0")
 
-        # W3 演示凭证 + mock 推理网关（仅在 TSD_DEMO_MOCK_LLM 设置时）
+        # W3 演示凭证（放在流水线之后，避免影响截图里的日志顺序）
         auth = W3Auth(settings)
         await auth.login("demo.engineer", "1234")
-        if os.environ.get("TSD_DEMO_MOCK_LLM"):
-            settings.update(
-                {
-                    "engine": {
-                        "baseUrl": os.environ["TSD_DEMO_MOCK_LLM"],
-                        "model": "mock-edit",
-                        "apiKey": "mock-api-key",
-                        "offlineMode": False,
-                    }
-                }
-            )
 
         result = {
             "workspace": str(workspace),
