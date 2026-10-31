@@ -141,10 +141,37 @@ finalize  更新 project.json（状态、统计）+ run.done
 
 ---
 
-## 7. 扩展点
+## 7. 凭证、Git 与编辑器 AI
+
+三个模块彼此独立，都通过 `docs/API.md` 暴露给前端：
+
+- `server/tsd/auth.py`：W3 凭证。配置了网关就走真实登录（`loginPath`），否则签发演示凭证；
+  只缓存 token / 用户 / 过期时间，密码不落盘。模型清单来自网关的 `modelsPath`。
+- `server/tsd/gitops.py`：仓库检索（local / gitlab / github / generic）、克隆、状态、
+  分支、与远程对比、提交推送。发布时**只同步差异涉及的文件**，不会误删仓库里的其它内容。
+- `server/tsd/agent_edit.py`：行内 AI。模型只需返回「替换选区」的代码文本，
+  后端负责拼装完整文件与统一补丁；未配置模型时解释退化为结构化静态分析。
+
+前端对应：
+
+- `src/components/code/CodeEditor.tsx` + `MonacoEditor.tsx` + `MonacoDiff.tsx`
+  （Monaco 与语言 worker 是独立懒加载 chunk，不进首屏）；
+- `src/components/project/GitTab.tsx` + `src/stores/git.ts`；
+- `src/components/settings/W3Card.tsx` + `src/stores/auth.ts`。
+
+## 8. 打包产物的自检
+
+`electron/main.ts` 的 `runPackagedSmoke`：设置 `TSD_SMOKE_OUTPUT` 后，应用会启动隐藏窗口、
+等待渲染进程加载、拉起随包后端并请求 `/api/health`，最后写 JSON 并以 0/1 退出。
+`scripts/verify-packaged-app.mjs` 负责启动产物并判定结果，CI 在打包后执行。
+
+## 9. 扩展点
 
 | 想做的事 | 改哪里 |
 | --- | --- |
+| W3 对接真实网关 | `server/tsd/auth.py` 的 `serverUrl/loginPath/modelsPath`，或 `PUT /api/settings` |
+| Git 服务换协议 | `server/tsd/gitops.py` 的 `_remote_repos` |
+| 编辑器 AI 提示词 | `server/tsd/agent_edit.py` 的 `SYSTEM_EDIT` / `SYSTEM_EXPLAIN` |
 | 换模型 / 加温度策略 | `server/tsd/llm.py`，或在设置页配置 |
 | 加一个流水线步骤 | `store.UPGRADE_STEPS` + `pipeline.run` 中插入一步（前端图标在 `PipelineTimeline` 的 `STEP_ICONS`） |
 | 换差异渲染 | `src/components/diff/PatchView.tsx` |

@@ -6,6 +6,8 @@ from typing import Any
 
 import httpx
 
+from .parser import use_env_proxy
+
 
 class LLMError(RuntimeError):
     pass
@@ -61,7 +63,8 @@ class LLMClient:
             "Content-Type": "application/json",
         }
         try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
+            # 本机模型（mock / Ollama / vLLM）不走代理，避免企业代理或 socks 环境被拦
+            async with httpx.AsyncClient(timeout=self.timeout, trust_env=use_env_proxy(self.endpoint)) as client:
                 response = await client.post(self.endpoint, headers=headers, json=payload)
         except httpx.HTTPError as exc:
             raise LLMError(f"模型请求失败：{exc}") from exc

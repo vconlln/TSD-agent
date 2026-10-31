@@ -458,7 +458,23 @@ class UpgradePipeline:
             channel.step_status("download", title="下载基础代码", status="running", detail="准备代码目录")
             code_url = reference_url or (source_url if kind in {"git", "zip", "local"} else (discovered[0] if discovered else None))
             download_result: dict[str, Any] = {"ok": False, "files": 0, "method": "none", "note": ""}
-            if code_url:
+            reused_clone = kind == "git" and (source_dir / ".git").exists() and bool(code_url)
+            if reused_clone:
+                channel.log("复用项目内已有的 Git 工作区，跳过重复下载")
+                download_result = {
+                    "ok": True,
+                    "files": sum(1 for _ in walk_files(source_dir)),
+                    "method": "git-reuse",
+                    "note": "复用已有克隆",
+                }
+                channel.step_status(
+                    "download",
+                    status="done",
+                    detail="复用已有 Git 克隆",
+                    progress=100,
+                    metrics={"文件": download_result["files"]},
+                )
+            elif code_url:
                 channel.log(f"代码来源：{code_url}")
                 channel.step_status("download", status="running", detail=f"正在获取 {code_url[:80]}", progress=10)
                 download_result = await download_source(

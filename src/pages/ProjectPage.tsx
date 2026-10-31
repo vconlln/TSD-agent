@@ -7,6 +7,7 @@ import {
   Copy,
   ExternalLink,
   FileText,
+  GitBranch,
   GitCompareArrows,
   LayoutDashboard,
   MessageSquare,
@@ -31,15 +32,17 @@ import { OverviewTab } from '@/components/project/OverviewTab'
 import { PlanTab } from '@/components/project/PlanTab'
 import { CodeTab } from '@/components/project/CodeTab'
 import { DiffTab } from '@/components/project/DiffTab'
+import { GitTab } from '@/components/project/GitTab'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 
-type Tab = 'overview' | 'plan' | 'code' | 'diff' | 'chat'
+type Tab = 'overview' | 'plan' | 'code' | 'diff' | 'git' | 'chat'
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: '概览', icon: LayoutDashboard },
   { id: 'plan', label: '方案', icon: FileText },
   { id: 'code', label: '代码', icon: Code2 },
   { id: 'diff', label: '差异', icon: GitCompareArrows },
+  { id: 'git', label: '仓库', icon: GitBranch },
   { id: 'chat', label: '对话', icon: MessageSquare },
 ]
 
@@ -317,6 +320,8 @@ export function ProjectPage() {
                   p.set('path', path)
                   setParams(p, { replace: true })
                 }} />
+              ) : tab === 'git' ? (
+                <GitTab project={project} />
               ) : (
                 <ChatPanel projectId={project.id} className="h-full" />
               )}

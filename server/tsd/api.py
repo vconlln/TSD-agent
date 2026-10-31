@@ -13,13 +13,16 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from . import __version__
+from .agent_edit import InlineAgent, InlineAgentError
+from .auth import W3Auth, W3AuthError
 from .chat import ChatAgent
 from .config import SettingsStore
 from .diffing import build_tree, compute_diffs, plan_diff, status_map
 from .events import EventHub
+from .gitops import GitError, GitOps
 from .pipeline import UpgradePipeline
 from .store import ProjectStore
-from .utils import is_binary, now_ms, read_text, safe_join, walk_files
+from .utils import has_binary_ext, is_binary, now_ms, read_text, safe_join, walk_files
 
 
 class CreateProjectBody(BaseModel):
@@ -45,6 +48,52 @@ class ApplyBody(BaseModel):
     proposalId: str
 
 
+class W3LoginBody(BaseModel):
+    username: str
+    password: str
+
+
+class GitCloneBody(BaseModel):
+    url: str
+    branch: str | None = None
+
+
+class GitPublishBody(BaseModel):
+    message: str = ""
+    branch: str | None = None
+    push: bool = True
+    remote: str = "origin"
+    createBranch: bool = True
+    force: bool = False
+
+
+class GitPushBody(BaseModel):
+    branch: str
+    remote: str = "origin"
+
+
+class AgentEditBody(BaseModel):
+    path: str
+    instruction: str
+    startLine: int = 0
+    endLine: int = 0
+    content: str | None = None
+
+
+class AgentExplainBody(BaseModel):
+    path: str
+    startLine: int = 0
+    endLine: int = 0
+    content: str | None = None
+    question: str | None = None
+
+
+class FileWriteBody(BaseModel):
+    path: str
+    content: str
+    side: str = "target"
+
+
 def empty_diff(project_id: str) -> dict[str, Any]:
     return {
         "projectId": project_id,
@@ -64,6 +113,9 @@ def create_app(workspace: Path) -> FastAPI:
     hub = EventHub(workspace / "runs")
     pipeline = UpgradePipeline(store, settings, hub)
     chat_agent = ChatAgent(store, settings, hub)
+    w3_auth = W3Auth(settings)
+    git_ops = GitOps(store, settings)
+    inline_agent = InlineAgent(store, settings)
 
     started_at = time.time()
     app = FastAPI(title="TSD Agent Backend", version=__version__)
@@ -462,6 +514,174 @@ def create_app(workspace: Path) -> FastAPI:
                 if len(results) >= 80:
                     break
         return {"results": results}
+
+    # ------------------------------------------------------------------
+    # W3 凭证与模型
+    # ------------------------------------------------------------------
+    @app.post("/api/auth/w3/login")
+    async def w3_login(body: W3LoginBody) -> dict[str, Any]:
+        try:
+            return await w3_auth.login(body.username, body.password)
+        except W3AuthError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+
+    @app.get("/api/auth/w3/status")
+    async def w3_status() -> dict[str, Any]:
+        await w3_auth.ensure_models()
+        return w3_auth.status()
+
+    @app.post("/api/auth/w3/logout")
+    async def w3_logout() -> dict[str, Any]:
+        return w3_auth.logout()
+
+    @app.get("/api/models")
+    async def list_models() -> dict[str, Any]:
+        try:
+            return await w3_auth.models()
+        except W3AuthError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+
+    # ------------------------------------------------------------------
+    # Git 仓库
+    # ------------------------------------------------------------------
+    @app.get("/api/git/repos")
+    async def git_repos(prefix: str = "") -> dict[str, Any]:
+        return await git_ops.search_repos(prefix)
+
+    @app.post("/api/projects/{project_id}/git/clone")
+    async def git_clone(project_id: str, body: GitCloneBody) -> dict[str, Any]:
+        project = store.get(project_id)
+        if not project:
+            raise HTTPException(404, "项目不存在")
+        try:
+            result = await asyncio.to_thread(git_ops.clone, project, body.url, body.branch)
+        except GitError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+        await project_diff(project_id, refresh=1)
+        return result
+
+    @app.get("/api/projects/{project_id}/git/status")
+    async def git_status(project_id: str) -> dict[str, Any]:
+        project = store.get(project_id)
+        if not project:
+            raise HTTPException(404, "项目不存在")
+        try:
+            return await asyncio.to_thread(git_ops.status, project)
+        except GitError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/git/branches")
+    async def git_branches(project_id: str) -> dict[str, Any]:
+        project = store.get(project_id)
+        if not project:
+            raise HTTPException(404, "项目不存在")
+        try:
+            return await asyncio.to_thread(git_ops.branches, project)
+        except GitError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+
+    @app.get("/api/projects/{project_id}/git/compare")
+    async def git_compare(project_id: str, base: str | None = None) -> dict[str, Any]:
+        project = store.get(project_id)
+        if not project:
+            raise HTTPException(404, "项目不存在")
+        try:
+            return await asyncio.to_thread(git_ops.compare, project, base)
+        except GitError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+
+    @app.post("/api/projects/{project_id}/git/publish")
+    async def git_publish(project_id: str, body: GitPublishBody) -> dict[str, Any]:
+        project = store.get(project_id)
+        if not project:
+            raise HTTPException(404, "项目不存在")
+        try:
+            return await asyncio.to_thread(
+                git_ops.publish,
+                project,
+                body.message,
+                body.branch or "",
+                body.push,
+                body.remote,
+                body.createBranch,
+                body.force,
+            )
+        except GitError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+
+    @app.post("/api/projects/{project_id}/git/push")
+    async def git_push(project_id: str, body: GitPushBody) -> dict[str, Any]:
+        project = store.get(project_id)
+        if not project:
+            raise HTTPException(404, "项目不存在")
+        try:
+            return await asyncio.to_thread(git_ops.push, project, body.branch, body.remote)
+        except GitError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+
+    # ------------------------------------------------------------------
+    # 编辑器内 AI + 文件写回
+    # ------------------------------------------------------------------
+    @app.post("/api/projects/{project_id}/agent/edit")
+    async def agent_edit(project_id: str, body: AgentEditBody) -> dict[str, Any]:
+        project = store.get(project_id)
+        if not project:
+            raise HTTPException(404, "项目不存在")
+        try:
+            return await inline_agent.edit(
+                project,
+                body.path,
+                body.instruction,
+                body.startLine,
+                body.endLine,
+                body.content,
+            )
+        except InlineAgentError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+
+    @app.post("/api/projects/{project_id}/agent/explain")
+    async def agent_explain(project_id: str, body: AgentExplainBody) -> dict[str, Any]:
+        project = store.get(project_id)
+        if not project:
+            raise HTTPException(404, "项目不存在")
+        try:
+            return await inline_agent.explain(
+                project,
+                body.path,
+                body.startLine,
+                body.endLine,
+                body.content,
+                body.question,
+            )
+        except InlineAgentError as exc:
+            raise HTTPException(exc.status, str(exc)) from exc
+
+    @app.post("/api/projects/{project_id}/files/write")
+    async def write_file(project_id: str, body: FileWriteBody) -> dict[str, Any]:
+        project = store.get(project_id)
+        if not project:
+            raise HTTPException(404, "项目不存在")
+        paths = store.paths(project_id)
+        root = paths["source"] if body.side == "source" else store.target_dir(project)
+        if not root.exists():
+            raise HTTPException(409, "目标目录不存在，请先执行升级")
+        try:
+            target = safe_join(root, body.path)
+        except ValueError as exc:
+            raise HTTPException(400, "非法文件路径") from exc
+        if has_binary_ext(body.path):
+            raise HTTPException(400, "二进制文件不支持在线编辑")
+        if len(body.content.encode("utf-8")) > 2_000_000:
+            raise HTTPException(413, "文件内容过大")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(body.content, "utf-8")
+        await project_diff(project_id, refresh=1)
+        return {
+            "ok": True,
+            "path": body.path,
+            "size": target.stat().st_size,
+            "updatedAt": now_ms(),
+        }
 
     @app.on_event("shutdown")
     async def shutdown() -> None:

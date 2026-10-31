@@ -17,8 +17,37 @@ DEFAULT_ENGINE: dict[str, Any] = {
     "apiKey": "",
 }
 
+DEFAULT_W3: dict[str, Any] = {
+    # Empty serverUrl keeps the credential flow in demo mode (local token), so
+    # the UI can be wired before the internal gateway address is known.
+    "serverUrl": "",
+    "loginPath": "/api/v1/auth/login",
+    "modelsPath": "/api/v1/models",
+    "rememberUsername": "",
+    # Cached session so a restart keeps working until the credential expires.
+    "token": "",
+    "user": {},
+    "expiresAt": 0,
+    "mode": "",
+}
+
+DEFAULT_GIT: dict[str, Any] = {
+    # local | gitlab | github | generic
+    "provider": "local",
+    "baseUrl": "",
+    "token": "",
+    "reposPath": "/api/v4/projects",
+    # Directory scanned for repositories when provider is "local".
+    "reposRoot": "",
+    "defaultBranch": "main",
+    "authorName": "TSD Agent",
+    "authorEmail": "tsd-agent@localhost",
+}
+
 DEFAULTS: dict[str, Any] = {
     "engine": DEFAULT_ENGINE,
+    "w3": DEFAULT_W3,
+    "git": DEFAULT_GIT,
     "concurrency": 2,
     "autoApplyChatEdits": False,
     "language": "zh-CN",
@@ -41,9 +70,12 @@ class SettingsStore:
                 raw = json.loads(self.path.read_text("utf-8"))
                 if isinstance(raw, dict):
                     engine = raw.pop("engine", {}) or {}
-                    data.update({k: v for k, v in raw.items() if k in DEFAULT_ENGINE or k in DEFAULTS})
-                    merged = {**DEFAULT_ENGINE, **{k: v for k, v in engine.items() if k in DEFAULT_ENGINE}}
-                    data["engine"] = merged
+                    w3 = raw.pop("w3", {}) or {}
+                    git = raw.pop("git", {}) or {}
+                    data.update({k: v for k, v in raw.items() if k in DEFAULTS})
+                    data["engine"] = {**DEFAULT_ENGINE, **{k: v for k, v in engine.items() if k in DEFAULT_ENGINE}}
+                    data["w3"] = {**DEFAULT_W3, **{k: v for k, v in w3.items() if k in DEFAULT_W3}}
+                    data["git"] = {**DEFAULT_GIT, **{k: v for k, v in git.items() if k in DEFAULT_GIT}}
         except Exception:
             pass
         env_key = os.environ.get("TSD_LLM_API_KEY")
@@ -65,9 +97,34 @@ class SettingsStore:
             pass
 
     # ------------------------------------------------------------------
+    def w3(self) -> dict[str, Any]:
+        return dict(self._data["w3"])
+
+    def git(self) -> dict[str, Any]:
+        return dict(self._data["git"])
+
     def public(self) -> dict[str, Any]:
         engine = self._data["engine"]
+        w3 = self._data["w3"]
+        git = self._data["git"]
         return {
+            "w3": {
+                "serverUrl": w3["serverUrl"],
+                "loginPath": w3["loginPath"],
+                "modelsPath": w3["modelsPath"],
+                "rememberUsername": w3["rememberUsername"],
+                "configured": bool(w3["serverUrl"]),
+            },
+            "git": {
+                "provider": git["provider"],
+                "baseUrl": git["baseUrl"],
+                "tokenSet": bool(git["token"]),
+                "reposPath": git["reposPath"],
+                "reposRoot": git["reposRoot"],
+                "defaultBranch": git["defaultBranch"],
+                "authorName": git["authorName"],
+                "authorEmail": git["authorEmail"],
+            },
             "engine": {
                 "provider": engine["provider"],
                 "baseUrl": engine["baseUrl"],
@@ -87,8 +144,33 @@ class SettingsStore:
     def engine(self) -> dict[str, Any]:
         return dict(self._data["engine"])
 
+    def update_w3(self, patch: dict[str, Any]) -> None:
+        with self._lock:
+            for key, value in patch.items():
+                if key in DEFAULT_W3:
+                    self._data["w3"][key] = value
+            self._save()
+
+    def update_git(self, patch: dict[str, Any]) -> None:
+        with self._lock:
+            for key, value in patch.items():
+                if key in DEFAULT_GIT:
+                    self._data["git"][key] = value
+            self._save()
+
     def update(self, patch: dict[str, Any]) -> dict[str, Any]:
         with self._lock:
+            if isinstance(patch.get("w3"), dict):
+                for key, value in patch["w3"].items():
+                    if key in DEFAULT_W3:
+                        self._data["w3"][key] = value
+            if isinstance(patch.get("git"), dict):
+                for key, value in patch["git"].items():
+                    if key == "token" and isinstance(value, str):
+                        self._data["git"]["token"] = value.strip()
+                        continue
+                    if key in DEFAULT_GIT:
+                        self._data["git"][key] = value
             if isinstance(patch.get("engine"), dict):
                 incoming = patch["engine"]
                 for key, value in incoming.items():

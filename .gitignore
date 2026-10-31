@@ -12,6 +12,8 @@ __pycache__/
 venv/
 server/build/
 server/dist/
+# 由 PyInstaller 生成、随安装包分发的后端（见 backend-dist/README.md）
+backend-dist/tsd-server/
 *.spec.bak
 
 # e2e temp

@@ -66,6 +66,17 @@ git push
 
 前置：Node 18+、Python 3.10+、Git。
 
+> 国内网络下 electron-builder 首次构建需要下载 Electron 与 7zip 工具集，
+> 建议先设置镜像（PowerShell）：
+>
+> ```powershell
+> $env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
+> $env:ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries/"
+> ```
+>
+> 下载过的产物会缓存在 `%LOCALAPPDATA%\electron\Cache` 与
+> `%LOCALAPPDATA%\electron-builder\Cache`，后续构建直接复用。
+
 ```powershell
 git clone https://github.com/vconlln/TSD-agent.git
 cd TSD-agent
@@ -132,7 +143,52 @@ CI 里同样有 `ci/build-linux.yml`（安装方式同上）。
 
 ---
 
-## 5. 版本号与图标
+## 5. 安装向导的品牌化
+
+安装包使用 **assisted（非一键）** NSIS 向导：欢迎页 → 安装模式 → 选择目录 → 安装 → 完成。
+
+| 资源 | 生成方式 | 作用 |
+| --- | --- | --- |
+| `build/icon.png` / `icon.ico` | `npm run icon` | 应用图标 + 安装器图标 |
+| `build/installerSidebar.bmp` | `npm run assets:installer` | 欢迎页/完成页左侧 164×314 竖图 |
+| `build/installerHeader.bmp` | `npm run assets:installer` | 目录页/安装页顶部 150×57 横图 |
+| `build/installer.nsh` | 手写 | 中文欢迎页/完成页文案（`customWelcomePage` 宏） |
+
+`electron-builder.yml` 中相关配置：
+
+```yaml
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true   # 允许自定义安装目录
+  createDesktopShortcut: always
+  installerSidebar: build/installerSidebar.bmp
+  installerHeader: build/installerHeader.bmp
+  include: build/installer.nsh
+  installerLanguages: [zh_CN]                # 中文向导
+  runAfterFinish: true                       # 完成后可直接启动
+```
+
+> NSIS 以 `-INPUTCHARSET UTF8` 编译，因此 `.nsh` 里可以直接写中文。
+
+## 6. 打包产物自检
+
+```bash
+npm run verify:package                          # 自动探测 release/<platform>-unpacked
+node scripts/verify-packaged-app.mjs --dir release/win-unpacked
+```
+
+自检流程（`electron/main.ts` 中的 `runPackagedSmoke`）：
+
+1. 以 `TSD_SMOKE_OUTPUT=<json>` 启动打包后的应用（隐藏窗口，不需要显示环境）；
+2. 等待渲染进程 `did-finish-load`，确认 `#root` 已挂载；
+3. 拉起随包分发的 Python 后端，轮询 `/api/health`；
+4. 写出 JSON 报告并以 0/1 退出，脚本据此判定成功或失败。
+
+CI 在 `electron-builder --win nsis` 之后、上传安装包之前执行这一步；
+本地打 Windows 包时也建议执行一次。
+
+## 7. 版本号与图标
 
 - 版本号：改 `package.json` 的 `version`（安装包与 `app.getVersion()` 同步）。
 - 图标：`python scripts/make-icon.py` 重新生成 `build/icon.png` / `build/icon.ico`；
@@ -140,12 +196,14 @@ CI 里同样有 `ci/build-linux.yml`（安装方式同上）。
 
 ---
 
-## 6. 验证清单
+## 8. 验证清单
 
 ```bash
-npm run typecheck                    # 类型检查
-npm run build                        # 产物构建
-python scripts/e2e/run_e2e.py        # 后端全链路（离线模式）
+npm run typecheck                        # 类型检查
+npm run build                            # 产物构建
+python scripts/e2e/run_e2e.py            # 升级流水线全链路（离线模式）
+python scripts/e2e/run_git_e2e.py        # W3 凭证 / Git 推送 / 编辑器 AI 全链路
+npm run verify:package                   # 打包产物启动自检
 ```
 
 安装包自测：

@@ -4,8 +4,8 @@
  *   node_modules/electron/dist/electron --no-sandbox --ozone-platform=headless \
  *     --disable-gpu scripts/capture-screens.cjs
  *
- * 依赖：后端已在 127.0.0.1:8791 运行，且 dist/renderer 已构建。
- * 产物：docs/screenshots/*.png 与 scripts/e2e/.tmp/capture-report.json
+ * 依赖：后端已在 127.0.0.1:8791 运行（含演示数据），可选 mock LLM 在 8799，
+ * 且 dist/renderer 已构建。产物：docs/screenshots/*.png 与 capture-report.json。
  */
 const { app, BrowserWindow } = require('electron')
 const fs = require('node:fs')
@@ -16,9 +16,6 @@ const OUT = path.join(ROOT, 'docs', 'screenshots')
 const TMP = path.join(ROOT, 'scripts', 'e2e', '.tmp')
 const RENDERER = path.join(ROOT, 'dist', 'renderer', 'index.html')
 const API = 'http://127.0.0.1:8791'
-
-const DARK_VIOLET = { theme: 'violet', mode: 'dark', density: 'cozy', effects: 'full', radius: 12, sidebarCollapsed: false, codeWrap: false, diffLayout: 'unified', diffHighlight: true }
-const LIGHT_OCEAN = { theme: 'ocean', mode: 'light', density: 'cozy', effects: 'calm', radius: 14, sidebarCollapsed: false, codeWrap: false, diffLayout: 'unified', diffHighlight: true }
 
 app.disableHardwareAcceleration()
 app.commandLine.appendSwitch('force-device-scale-factor', '2')
@@ -31,7 +28,7 @@ async function api(pathname, init) {
   return res.json()
 }
 
-const AUDIT_JS = `(() => {
+const AUDIT_JS = String.raw`(() => {
   try {
     const el = document.documentElement
     const main = document.querySelector('main')
@@ -67,27 +64,19 @@ const AUDIT_JS = `(() => {
         if (overflow.length >= 6) break
       }
     }
-    const tiny = []
-    for (const button of document.querySelectorAll('button')) {
-      const rect = button.getBoundingClientRect()
-      if (rect.width > 0 && rect.height > 0 && rect.height < 18) tiny.push(button.textContent.trim().slice(0, 12) || button.getAttribute('aria-label') || 'icon')
-    }
     return {
       ok: true,
       scrollWidth: el.scrollWidth,
       innerWidth: window.innerWidth,
-      innerHeight: window.innerHeight,
       bodyText: document.body.innerText.length,
       mainWidth: main ? Math.round(main.getBoundingClientRect().width) : 0,
       mainHeight: main ? Math.round(main.getBoundingClientRect().height) : 0,
       rootChildren: document.getElementById('root') ? document.getElementById('root').children.length : 0,
       buttons: document.querySelectorAll('button').length,
       overflow,
-      tinyButtons: tiny,
       theme: el.dataset.theme,
       mode: el.dataset.mode,
       background: window.getComputedStyle(document.body).backgroundColor,
-      primary: window.getComputedStyle(el).getPropertyValue('--primary').trim(),
       textExcerpt: document.body.innerText.split(String.fromCharCode(10)).join(' | ').slice(0, 700),
       rects,
     }
@@ -97,19 +86,13 @@ const AUDIT_JS = `(() => {
 })()`
 
 async function main() {
-  const report = { consoleErrors: [], checks: [], shots: [] }
-
+  const report = { consoleErrors: [], checks: [], shots: [], flags: {} }
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
     show: false,
     backgroundColor: '#08090f',
-    webPreferences: {
-      offscreen: true,
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-    },
+    webPreferences: { offscreen: true, contextIsolation: true, nodeIntegration: false, sandbox: false },
   })
 
   win.webContents.on('console-message', (_event, level, message) => {
@@ -120,45 +103,27 @@ async function main() {
   })
 
   const { projects } = await api('/api/projects')
-  const project = projects.find((p) => p.status === 'ready') || projects[0]
-  const projectId = project.id
-  report.projectId = projectId
-  report.projectName = project.name
+  const pageProject = projects.find((p) => p.name === '订单中心') || projects.find((p) => p.status === 'ready')
+  const gitProject = projects.find((p) => p.name === 'micabc') || pageProject
   report.projects = projects.map((p) => ({ id: p.id, name: p.name, status: p.status }))
+  report.projectId = pageProject.id
+  report.gitProjectId = gitProject.id
 
-  const load = async (hash) => {
+  const load = async (hash, wait = 900) => {
     await win.loadURL('file://' + RENDERER + '#' + hash)
-    await sleep(900)
+    await sleep(wait)
   }
-
-  let evalLabel = 'eval'
-  const evalJs = async (code) => {
-    try {
-      return await win.webContents.executeJavaScript(code, true)
-    } catch (error) {
-      console.log('[eval:' + evalLabel + '] failed: ' + (error && error.message))
-      throw error
-    }
-  }
-
-  // Full document load (unique query) — hash-only changes never re-read persisted state.
   const hardLoad = async (hash = '/') => {
     await win.loadURL('file://' + RENDERER + '?r=' + Date.now() + '#' + hash)
     await sleep(1300)
   }
-
-  const applyThemeViaUi = async ({ mode, themeName }) => {
-    await evalJs("(() => { const b = document.querySelector('button[aria-label=\"外观设置\"]'); if (b) b.click(); return Boolean(b) })()")
-    await sleep(500)
-    await click(mode === 'light' ? '浅色' : '深色')
-    await sleep(350)
-    if (themeName) await evalJs("(() => { const b = document.querySelector('button[title=\"" + themeName + "\"]'); if (b) b.click(); return Boolean(b) })()")
-    await sleep(600)
-    const state = await evalJs("[document.documentElement.dataset.mode, document.documentElement.dataset.theme]")
-    console.log('[theme] now ' + JSON.stringify(state))
-    return state
-  }
-
+  const evalJs = (code) => win.webContents.executeJavaScript(code, true)
+  const click = (text) =>
+    evalJs(
+      "(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.trim().includes(" +
+        JSON.stringify(text) +
+        ')); if (b) b.click(); return Boolean(b) })()',
+    )
   const audit = async (label) => {
     const data = await evalJs(AUDIT_JS)
     if (!data.ok) {
@@ -173,9 +138,7 @@ async function main() {
       data.overflow.length === 0 &&
       data.mainHeight > 400
     report.checks.push({ label, ok, ...data })
-    return data
   }
-
   const shot = async (name) => {
     const image = await win.capturePage()
     const file = path.join(OUT, name + '.png')
@@ -184,17 +147,19 @@ async function main() {
     report.shots.push({ name, file: path.relative(ROOT, file), ...size })
     console.log('[shot] ' + name + ' ' + size.width + 'x' + size.height)
   }
-
-  const click = (text) =>
-    evalJs(
-      "(() => { const b = [...document.querySelectorAll('button')].find((x) => x.textContent.includes(" +
-        JSON.stringify(text) +
-        ')); if (b) b.click(); return Boolean(b) })()',
-    )
+  const applyThemeViaUi = async ({ mode, themeName }) => {
+    await evalJs("(() => { const b = document.querySelector('button[aria-label=\"外观设置\"]'); if (b) b.click(); return Boolean(b) })()")
+    await sleep(500)
+    await click(mode === 'light' ? '浅色' : '深色')
+    await sleep(350)
+    if (themeName) {
+      await evalJs("(() => { const b = document.querySelector('button[title=\"" + themeName + "\"]'); if (b) b.click(); return Boolean(b) })()")
+    }
+    await sleep(600)
+  }
 
   fs.mkdirSync(OUT, { recursive: true })
 
-  // Start from a clean appearance state so screenshots are reproducible.
   await load('/')
   await evalJs('localStorage.removeItem("tsd.appearance.v1"); true')
   await hardLoad('/')
@@ -202,32 +167,27 @@ async function main() {
   await audit('workbench')
   await shot('01-workbench')
 
-  await load('/project/' + projectId + '?tab=overview')
-  await sleep(800)
+  await load('/project/' + pageProject.id + '?tab=overview')
   await audit('project-overview')
   await shot('02-project-overview')
 
-  await load('/project/' + projectId + '?tab=plan')
-  await sleep(700)
+  await load('/project/' + pageProject.id + '?tab=plan')
   await click('差异对比')
   await sleep(1500)
   await audit('plan-diff')
   await shot('03-plan-diff')
 
-  await load('/project/' + projectId + '?tab=code&side=target&path=src/auth.ts')
-  await sleep(1700)
+  await load('/project/' + pageProject.id + '?tab=code&side=target&path=src/auth.ts', 3000)
   await audit('code-view')
   await shot('04-code')
 
-  await load('/project/' + projectId + '?tab=diff')
-  await sleep(2000)
+  await load('/project/' + pageProject.id + '?tab=diff', 2000)
   await click('并排')
   await sleep(1400)
   await audit('code-diff')
   await shot('05-diff-split')
 
-  await load('/project/' + projectId + '?tab=chat')
-  await sleep(700)
+  await load('/project/' + pageProject.id + '?tab=chat')
   const sent = await evalJs(`(() => {
     const ta = document.querySelector('textarea')
     if (!ta) return false
@@ -242,7 +202,7 @@ async function main() {
     for (let attempt = 0; attempt < 40; attempt++) {
       await sleep(500)
       const done = await evalJs(
-        "document.body.innerText.includes('代码修改建议') || document.body.innerText.includes('已应用到') || document.body.innerText.includes('离线模式')",
+        "document.body.innerText.includes('代码修改建议') || document.body.innerText.includes('离线模式')",
       )
       if (done) break
     }
@@ -251,28 +211,81 @@ async function main() {
   await audit('chat')
   await shot('06-chat')
 
-  await load('/project/' + projectId + '?tab=overview')
+  await load('/project/' + pageProject.id + '?tab=overview')
   await evalJs("(() => { const b = document.querySelector('button[aria-label=\"外观设置\"]'); if (b) b.click(); return Boolean(b) })()")
   await sleep(700)
   await audit('theme-panel')
   await shot('07-theme-panel')
 
   await load('/')
-  await sleep(400)
+  await sleep(300)
   await applyThemeViaUi({ mode: 'light', themeName: '深海蓝' })
   await hardLoad('/')
   await load('/')
-  await sleep(800)
   await audit('workbench-light')
   await shot('08-workbench-light')
 
   await applyThemeViaUi({ mode: 'dark', themeName: '极光紫' })
   await hardLoad('/settings')
-  await sleep(600)
   await load('/settings')
-  await sleep(800)
-  await audit('settings')
-  await shot('09-settings')
+  await audit('settings-w3')
+  await shot('09-settings-w3')
+
+  await load('/project/' + gitProject.id + '?tab=git', 1500)
+  await audit('git-tab')
+  await shot('10-git-tab')
+
+  await load('/project/' + gitProject.id + '?tab=code&side=target&path=src/index.ts', 3200)
+  // 编辑器头部（含「修改」按钮）要等文件内容与 Monaco 就绪，点击需要重试
+  let dialogOpen = false
+  for (let attempt = 0; attempt < 20 && !dialogOpen; attempt++) {
+    await click('修改')
+    await sleep(500)
+    dialogOpen = await evalJs("document.body.innerText.includes('AI 修改代码')")
+  }
+  if (dialogOpen) {
+    // 注意：Monaco 自己有一个隐藏 textarea，必须按 placeholder 精确选中对话框里的输入框
+    const filled = await evalJs(`(() => {
+      const ta = [...document.querySelectorAll('textarea')].find((t) => (t.placeholder || '').startsWith('描述要做的修改'))
+      if (!ta) return false
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set
+      setter.call(ta, '为这个函数补充中文注释，并说明参数含义')
+      ta.dispatchEvent(new Event('input', { bubbles: true }))
+      return true
+    })()`)
+    console.log('[capture] modify dialog textarea filled: ' + filled)
+    await click('生成修改')
+    for (let attempt = 0; attempt < 60; attempt++) {
+      await sleep(500)
+      const ready = await evalJs("document.body.innerText.includes('审阅 AI 修改')")
+      if (ready) break
+    }
+    await sleep(1800)
+    report.flags.editorAiReview = await evalJs(
+      "document.body.innerText.includes('审阅 AI 修改') && document.body.innerText.includes('接受并写入')",
+    )
+    await audit('editor-ai-diff')
+    await shot('11-editor-ai-diff')
+  }
+
+  await load('/project/' + gitProject.id + '?tab=code&side=target&path=src/index.ts', 3200)
+  let explainOpen = false
+  for (let attempt = 0; attempt < 20 && !explainOpen; attempt++) {
+    await click('解释')
+    await sleep(600)
+    explainOpen = await evalJs("document.body.innerText.includes('AI 解释')")
+  }
+  for (let attempt = 0; attempt < 40; attempt++) {
+    await sleep(400)
+    const ready = await evalJs("document.body.innerText.includes('结论') || document.body.innerText.includes('离线分析')")
+    if (ready) break
+  }
+  await sleep(1400)
+  report.flags.editorExplainPanel = await evalJs(
+    "document.body.innerText.includes('AI 解释') && (document.body.innerText.includes('结论') || document.body.innerText.includes('概览'))",
+  )
+  await audit('editor-explain')
+  await shot('12-editor-explain')
 
   fs.mkdirSync(TMP, { recursive: true })
   fs.writeFileSync(path.join(TMP, 'capture-report.json'), JSON.stringify(report, null, 2))
@@ -285,15 +298,12 @@ async function main() {
         '  ' + (check.ok ? 'PASS' : 'FAIL') + ' ' + check.label +
           ' theme=' + check.mode + '/' + check.theme +
           ' text=' + check.bodyText +
-          ' overflow=' + check.overflow.length +
-          ' main=' + check.mainWidth + 'x' + check.mainHeight,
+          ' overflow=' + check.overflow.length,
       )
     }
   }
-  for (const check of report.checks) {
-    if (check.textExcerpt) console.log('\n[' + check.label + '] ' + check.textExcerpt.slice(0, 420))
-  }
-  console.log('\n[console errors] ' + report.consoleErrors.length)
+  console.log('[flags] ' + JSON.stringify(report.flags))
+  console.log('[console errors] ' + report.consoleErrors.length)
   report.consoleErrors.slice(0, 8).forEach((line) => console.log('  ! ' + line))
 
   app.exit(failures.length === 0 && report.consoleErrors.length === 0 ? 0 : 1)

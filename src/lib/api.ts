@@ -4,13 +4,23 @@ import type {
   CreateProjectInput,
   DiffPayload,
   Documents,
+  ExplainResult,
   FileContent,
+  FileWriteResult,
+  GitBranchInfo,
+  GitCompareResult,
+  GitPublishResult,
+  GitReposResult,
+  GitStatusInfo,
   HealthInfo,
+  InlineEditResult,
+  ModelsResult,
   Project,
   Run,
   SettingsPatch,
   StartRunInput,
   TreeNode,
+  W3Status,
 } from '../../shared/types'
 
 export class ApiError extends Error {
@@ -237,6 +247,80 @@ export const api = {
     }),
   exportBundle: (id: string) =>
     request<{ ok: boolean; path: string }>(`/api/projects/${id}/export`, { method: 'POST' }),
+
+  /* ---------------------------- W3 auth ---------------------------- */
+  w3Status: () => request<W3Status>('/api/auth/w3/status'),
+  w3Login: (username: string, password: string) =>
+    request<W3Status>('/api/auth/w3/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+      timeoutMs: 45_000,
+    }),
+  w3Logout: () => request<{ ok: boolean }>('/api/auth/w3/logout', { method: 'POST' }),
+  models: () => request<ModelsResult>('/api/models'),
+
+  /* ------------------------------ Git ------------------------------ */
+  searchRepos: (prefix: string) =>
+    request<GitReposResult>(`/api/git/repos?prefix=${encodeURIComponent(prefix)}`, { timeoutMs: 45_000 }),
+  gitClone: (id: string, url: string, branch?: string) =>
+    request<{ ok: boolean; branch: string; remote: string; files: number; baseVersion?: string }>(
+      `/api/projects/${id}/git/clone`,
+      { method: 'POST', body: JSON.stringify({ url, branch }), timeoutMs: 600_000 },
+    ),
+  gitStatus: (id: string) => request<GitStatusInfo>(`/api/projects/${id}/git/status`),
+  gitBranches: (id: string) => request<GitBranchInfo>(`/api/projects/${id}/git/branches`),
+  gitCompare: (id: string, base?: string) =>
+    request<GitCompareResult>(
+      `/api/projects/${id}/git/compare${base ? `?base=${encodeURIComponent(base)}` : ''}`,
+      { timeoutMs: 120_000 },
+    ),
+  gitPublish: (
+    id: string,
+    body: {
+      message: string
+      branch?: string
+      push?: boolean
+      remote?: string
+      createBranch?: boolean
+      force?: boolean
+    },
+  ) =>
+    request<GitPublishResult>(`/api/projects/${id}/git/publish`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      timeoutMs: 300_000,
+    }),
+  gitPush: (id: string, branch: string, remote = 'origin') =>
+    request<{ ok: boolean; branch: string; url?: string }>(`/api/projects/${id}/git/push`, {
+      method: 'POST',
+      body: JSON.stringify({ branch, remote }),
+      timeoutMs: 300_000,
+    }),
+
+  /* -------------------------- Inline agent -------------------------- */
+  agentEdit: (
+    id: string,
+    body: { path: string; instruction: string; startLine?: number; endLine?: number; content?: string },
+  ) =>
+    request<InlineEditResult>(`/api/projects/${id}/agent/edit`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      timeoutMs: 180_000,
+    }),
+  agentExplain: (
+    id: string,
+    body: { path: string; startLine?: number; endLine?: number; content?: string; question?: string },
+  ) =>
+    request<ExplainResult>(`/api/projects/${id}/agent/explain`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+      timeoutMs: 120_000,
+    }),
+  writeFile: (id: string, path: string, content: string, side: 'source' | 'target' = 'target') =>
+    request<FileWriteResult>(`/api/projects/${id}/files/write`, {
+      method: 'POST',
+      body: JSON.stringify({ path, content, side }),
+    }),
 }
 
 export { streamRunEvents as subscribeRun }

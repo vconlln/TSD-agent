@@ -39,3 +39,6 @@ jobs:
 
       - name: Backend end-to-end test (offline mode)
         run: python scripts/e2e/run_e2e.py
+
+      - name: Credential / Git / inline-AI end-to-end test
+        run: python scripts/e2e/run_git_e2e.py

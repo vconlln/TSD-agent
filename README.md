@@ -40,8 +40,16 @@ TSD Agent 把这条链路交给一个自动化的 Agent 流水线，你只需要
 - **对话式迭代**：输出完成后继续和 Agent 对话，它会给出**可审阅的补丁建议**，你点「应用到代码」才会真正落盘，差异随即刷新。
 - **7 套主题 × 深浅模式**：极光紫、深海蓝、翡翠绿、落日橙、玫瑰红、樱花粉、石墨灰；密度、圆角、背景特效、代码换行、差异布局全部可调，实时生效并持久化。
 - **后端可替换**：前端只依赖一套 HTTP + SSE 契约（见 [docs/API.md](docs/API.md)）。既可以用随包分发的参考后端，也可以在设置里连接**你自己的 Python 服务**。
-- **三种代码来源**：方案网页 / Git 仓库 / 代码压缩包 / 本地目录，页面里还能自动发现 GitHub 或 zip 链接。
-- **离线可跑**：没配 API Key 时自动降级为离线启发式模式，流程依然完整，方便先验证链路再接模型。
+- **四种代码来源**：方案网页 / Git 仓库 / 代码压缩包 / 本地目录，页面里还能自动发现 GitHub 或 zip 链接。
+- **W3 凭证登录**：在设置里用内网账号换访问凭证并拉取可用模型清单；网关地址属于部署细节，
+  未配置时自动进入演示模式（本地签发凭证 + 内置模型），前端联调不再被内网阻塞。
+- **Git 工作流（IDEA 式）**：按名称前缀检索远程仓库（GitLab / GitHub / 通用 REST / 本地扫描，
+  支持裸仓库），克隆到项目后查看当前分支、与远程对比（领先/落后提交 + 文件清单），
+  升级完成后一键「新建分支 → 提交 → 推送」，也可以先在编辑器里手工改。
+- **编辑器内 AI（Cursor 式）**：Monaco 编辑器里选中代码即可「解释」或「修改」，
+  修改结果以并排 diff 审阅，接受后才写盘，随后差异与 Git 状态自动刷新。
+- **离线可跑**：没配 API Key 时自动降级为离线启发式模式（解释退化为结构化静态分析），
+  流程依然完整，方便先验证链路再接模型。
 
 ---
 
@@ -65,19 +73,35 @@ TSD Agent 把这条链路交给一个自动化的 Agent 流水线，你只需要
     <td align="center"><sub>代码差异 · 并排 / 单列 + 语法着色</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/06-chat.png" alt="对话式修改" /></td>
-    <td width="50%"><img src="docs/screenshots/04-code.png" alt="代码浏览" /></td>
+    <td width="50%"><img src="docs/screenshots/10-git-tab.png" alt="Git 仓库面板" /></td>
+    <td width="50%"><img src="docs/screenshots/11-editor-ai-diff.png" alt="编辑器内 AI 修改与审阅" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>对话修改 · 可审阅补丁，一键应用</sub></td>
-    <td align="center"><sub>代码浏览 · 原版 / 升级版切换</sub></td>
+    <td align="center"><sub>仓库面板 · 本地 vs 远程 / 建分支推送</sub></td>
+    <td align="center"><sub>编辑器内 AI · 选中代码让 AI 改，并排审阅后接受</sub></td>
   </tr>
   <tr>
+    <td width="50%"><img src="docs/screenshots/12-editor-explain.png" alt="编辑器内 AI 解释" /></td>
+    <td width="50%"><img src="docs/screenshots/09-settings-w3.png" alt="W3 凭证与模型清单" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>AI 解释 · 选中即问，侧栏回答</sub></td>
+    <td align="center"><sub>设置 · W3 登录取凭证 + 模型清单</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/04-code.png" alt="代码浏览与编辑" /></td>
     <td width="50%"><img src="docs/screenshots/07-theme-panel.png" alt="外观面板" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Monaco 编辑器 · 原版 / 升级版切换</sub></td>
+    <td align="center"><sub>外观面板 · 7 套主题 / 密度 / 圆角 / 特效</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/06-chat.png" alt="对话式修改" /></td>
     <td width="50%"><img src="docs/screenshots/08-workbench-light.png" alt="浅色 + 深海蓝主题" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>外观面板 · 7 套主题 / 密度 / 圆角 / 特效</sub></td>
+    <td align="center"><sub>对话修改 · 可审阅补丁，一键应用</sub></td>
     <td align="center"><sub>浅色模式 + 深海蓝</sub></td>
   </tr>
 </table>
@@ -173,8 +197,16 @@ npm run dist:win
 ### 方式三：只想先跑起来
 
 ```bash
-npm run dist:dir     # 生成免安装目录（release/win-unpacked）
+npm run dist:dir                    # 生成免安装目录（release/win-unpacked）
+npm run verify:package              # 自检打包产物：渲染进程 + 内置后端都要正常
 ```
+
+`verify:package` 会以 `TSD_SMOKE_OUTPUT` 启动打包好的应用：加载真实渲染进程、
+拉起随包分发的 Python 后端、请求 `/api/health`，全部通过才返回 0。CI 在生成
+安装包之后也会跑这一步，避免「装得上但打不开」。
+
+安装向导本身也是品牌化的：中文界面、可自定义安装目录、桌面/开始菜单快捷方式，
+侧边栏与顶部横图由 `npm run assets:installer` 生成。
 
 ---
 
@@ -263,7 +295,7 @@ TSD-agent/
 ```bash
 npm run typecheck        # 全量 TypeScript 检查（渲染进程 + 主进程）
 npm run build            # 生产构建
-npm run e2e              # 端到端：页面 → 代码 → 方案 → 差异 → 对话 → 导出
+npm run e2e:all          # 端到端：升级流水线 + 凭证 / Git / 编辑器 AI
 npm run seed:demo        # 生成一份演示工作区（离线跑通，可直接用 GUI 打开）
 npm run screenshots      # 无头 Electron 渲染截图 + DOM 布局自检
 ```

@@ -24,6 +24,8 @@ import { useAppStore, THEMES } from '@/stores/app'
 import { Badge, Button, Field, Input, StatusDot, Segmented } from '@/components/ui'
 import { Select, Slider, Switch, Tooltip } from '@/components/ui/overlays'
 import { PageHeader, SectionTitle } from '@/components/common/PageHeader'
+import { W3Card } from '@/components/settings/W3Card'
+import { GitSettingsCard } from '@/components/settings/GitSettingsCard'
 import { cn } from '@/lib/utils'
 
 type Patch = SettingsPatch
@@ -157,6 +159,8 @@ export function SettingsPage() {
             {error}
           </div>
         ) : null}
+
+        <W3Card />
 
         <Card>
           <SectionTitle hint="用于方案升级与代码修改" action={<Badge variant={health?.engine === 'online' ? 'success' : 'warning'} className="gap-1"><StatusDot tone={health?.engine === 'online' ? 'success' : 'warning'} />{health?.engine === 'online' ? '在线' : '离线'}</Badge>}>
@@ -357,6 +361,8 @@ export function SettingsPage() {
             </div>
           </div>
         </Card>
+
+        {settings ? <GitSettingsCard settings={settings} onSaved={setSettings} /> : null}
 
         <Card>
           <SectionTitle hint="实时生效" action={<Button size="xs" variant="ghost" onClick={() => setThemePanelOpen(true)}>全部选项</Button>}>

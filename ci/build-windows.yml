@@ -54,6 +54,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Regenerate installer artwork
+        run: |
+          python -m pip install pillow
+          python scripts/make-icon.py
+          python scripts/make-installer-assets.py
+
       - name: Build app
         run: npm run build
         env:
@@ -63,6 +69,9 @@ jobs:
         run: npx electron-builder --win nsis --x64 --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify packaged app boots (renderer + bundled backend)
+        run: node scripts/verify-packaged-app.mjs --dir release/win-unpacked
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4

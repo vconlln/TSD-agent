@@ -28,9 +28,13 @@
     "pack:backend:win": "python -m PyInstaller --noconfirm server/tsd_server.spec",
     "pack:backend": "python -m PyInstaller --noconfirm server/tsd_server.spec",
     "e2e": "python scripts/e2e/run_e2e.py",
+    "e2e:git": "python scripts/e2e/run_git_e2e.py",
+    "e2e:all": "npm run e2e && npm run e2e:git",
     "seed:demo": "python scripts/seed_demo.py",
     "screenshots": "electron --no-sandbox --ozone-platform=headless --disable-gpu scripts/capture-screens.cjs",
-    "icon": "python scripts/make-icon.py"
+    "icon": "python scripts/make-icon.py",
+    "assets:installer": "python scripts/make-installer-assets.py",
+    "verify:package": "node scripts/verify-packaged-app.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",
@@ -49,6 +53,7 @@
     "diff": "^5.2.0",
     "framer-motion": "^11.11.9",
     "lucide-react": "^0.451.0",
+    "monaco-editor": "^0.52.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^9.0.1",

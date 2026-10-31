@@ -464,3 +464,322 @@ interface CodeProposal {
 ```bash
 python server/main.py --host 127.0.0.1 --port 8791 --workspace /path/to/workspace
 ```
+
+
+---
+
+## 10. W3 访问凭证与模型
+
+内网 W3 网关地址属于部署细节，前端只依赖以下契约。**未配置网关时后端进入演示模式**：
+任意用户名 + 4 位以上密码即可签发本地演示凭证，返回内置模型清单，便于先打通前端联调。
+
+### `POST /api/auth/w3/login`
+
+```json
+{ "username": "alice", "password": "********" }
+```
+
+响应：
+
+```ts
+interface W3Status {
+  authenticated: boolean
+  configured: boolean          // 后端是否配置了真实网关
+  mode: 'w3' | 'demo'
+  user?: { id?: string; name?: string; email?: string; department?: string }
+  expiresAt?: number
+  tokenPreview?: string        // 只回传摘要，完整凭证留在后端
+  rememberUsername?: string
+  models: W3Model[]
+  suggestedEngine?: { baseUrl?: string; apiKey?: string; model?: string }  // 可选：让前端一键写入引擎配置
+}
+
+interface W3Model {
+  id: string
+  name: string
+  provider?: string
+  contextWindow?: number
+  tags?: string[]
+  recommended?: boolean
+}
+```
+
+错误：`400` 参数不合法、`401` 账号或密码错误、`502` 网关不可用。
+
+真实网关模式下后端转发到 `{w3.serverUrl}{w3.loginPath}`（默认 `/api/v1/auth/login`）：
+请求体 `{"username","password"}`，期望返回 `{token | accessToken, expiresIn?, user | profile}`。
+
+### `GET /api/auth/w3/status`
+
+返回当前 `W3Status`；凭证过期会自动清除。
+
+### `POST /api/auth/w3/logout`
+
+```json
+{ "ok": true }
+```
+
+### `GET /api/models`
+
+```ts
+interface ModelsResult {
+  models: W3Model[]
+  source: 'w3' | 'builtin'
+}
+```
+
+模型清单来自 `{w3.serverUrl}{w3.modelsPath}`（默认 `/api/v1/models`，Bearer 凭证）。
+真实网关解析失败或未登录时返回内置清单。
+
+> 安全约定：密码只在登录请求中出现，**永远不落盘、不回传**；凭证只保存在本机工作区配置中。
+
+---
+
+## 11. Git 集成
+
+```
+项目/
+├── source/           ← git 工作区（克隆时保留 .git，差异计算会跳过它）
+├── v1.5.0/           ← 升级后的代码快照（不含 .git）
+└── plan/UPDATE.md
+```
+
+### 仓库检索
+
+#### `GET /api/git/repos?prefix=mic`
+
+按名称前缀检索仓库。`provider` 由设置决定：
+
+| provider | 行为 |
+| --- | --- |
+| `local`（默认） | 扫描 `git.reposRoot`（默认 `<workspace>/repos`）下的目录；识别工作区仓库与裸仓库 |
+| `gitlab` | `GET {baseUrl}/api/v4/projects?search=&simple=true`，`PRIVATE-TOKEN` |
+| `github` | `GET {baseUrl 或 https://api.github.com}/search/repositories?q=<prefix> in:name` |
+| `generic` | `GET {baseUrl}{reposPath}?search=&prefix=`，返回 `{items|data|repos}` |
+
+```ts
+interface GitReposResult {
+  provider: string
+  prefix: string
+  repos: Array<{
+    name: string
+    fullName?: string
+    url: string            // 可直接用于克隆（HTTPS / SSH / 本地路径）
+    path?: string
+    description?: string
+    defaultBranch?: string
+    updatedAt?: number
+    provider: string
+  }>
+  note?: string            // 远程不可用时的回退说明
+}
+```
+
+### 克隆
+
+#### `POST /api/projects/{id}/git/clone`
+
+```json
+{ "url": "https://git.example.com/group/micabc.git", "branch": "main" }
+```
+
+克隆到 `source/`（保留 `.git` 与 `origin`）。本地目录若不是 Git 仓库，会自动
+`git init` 并提交一次初始版本。
+
+```json
+{ "ok": true, "branch": "main", "remote": "https://…", "files": 128, "baseVersion": "1.4.0" }
+```
+
+### 状态 / 分支 / 对比
+
+#### `GET /api/projects/{id}/git/status`
+
+```ts
+interface GitStatusInfo {
+  initialized: boolean
+  repoDir?: string
+  gitAvailable?: boolean
+  branch?: string
+  upstream?: string
+  remoteUrl?: string
+  remotes?: Array<{ name: string; url: string }>
+  ahead?: number
+  behind?: number
+  dirty?: Array<{ path: string; status: 'added' | 'modified' | 'deleted' | 'renamed' | 'untracked' }>
+  lastCommit?: { sha: string; message: string; author: string; date: string } | null
+}
+```
+
+#### `GET /api/projects/{id}/git/branches`
+
+```ts
+interface GitBranchInfo {
+  current: string
+  local: Array<{ name: string; sha: string; date: string; subject: string }>
+  remote: Array<{ name: string; sha: string; date: string; subject: string }>
+}
+```
+
+#### `GET /api/projects/{id}/git/compare?base=origin/main`
+
+先 `git fetch --all --prune`（失败不致命），再对比基准分支。基准解析顺序：
+`base` 参数 → `@{u}` → `origin/<当前分支>` → `origin/<默认分支>` → `origin/HEAD`。
+
+```ts
+interface GitCompareResult {
+  ok: boolean
+  reason?: 'no-base'
+  base?: string
+  branch?: string
+  fetched?: boolean
+  ahead?: number
+  behind?: number
+  commits?: Array<{ sha: string; subject: string }>   // 本地领先的提交
+  incoming?: Array<{ sha: string; subject: string }>  // 远程领先的提交
+  files?: Array<{ status: string; path: string }>
+}
+```
+
+### 提交与推送
+
+#### `POST /api/projects/{id}/git/publish`
+
+把升级结果中**差异涉及的文件**同步进 Git 工作区，新建/切换分支后提交，可选推送。
+
+```json
+{
+  "message": "feat: upgrade to v1.5.0",
+  "branch": "upgrade/v1.5.0",
+  "push": true,
+  "remote": "origin",
+  "createBranch": true,
+  "force": false
+}
+```
+
+- 工作区有未提交改动且 `force=false` → 返回 `{ ok: false, reason: "worktree-dirty", dirty: [...] }`
+- 没有需要提交的改动 → `{ ok: false, reason: "no-changes" }`
+- 推送失败 → `{ ok: false, reason: "push-failed", error: "<stderr>" }`（本地提交保留）
+
+成功：
+
+```json
+{
+  "ok": true,
+  "branch": "upgrade/v1.5.0",
+  "sha": "86ad7fe",
+  "pushed": true,
+  "remote": "origin",
+  "url": "https://git.example.com/group/micabc/-/tree/upgrade%2Fv1.5.0",
+  "files": [{ "path": "src/index.ts", "status": "modified" }]
+}
+```
+
+#### `POST /api/projects/{id}/git/push`
+
+```json
+{ "branch": "upgrade/v1.5.0", "remote": "origin" }
+```
+
+### Git 设置（`PUT /api/settings`）
+
+```json
+{
+  "git": {
+    "provider": "gitlab",
+    "baseUrl": "https://git.example.internal",
+    "token": "glpat-…",
+    "reposPath": "/api/v4/projects",
+    "reposRoot": "/srv/repos",
+    "defaultBranch": "main",
+    "authorName": "TSD Agent",
+    "authorEmail": "tsd-agent@localhost"
+  }
+}
+```
+
+Token 只写不读（`GET /api/settings` 返回 `tokenSet: boolean`），会用于 HTTPS 推送的
+`http.extraheader=Authorization: Bearer …`。
+
+---
+
+## 12. 编辑器内 AI（行内修改 / 解释）
+
+前端把编辑器里**当前内容**（可能尚未保存）连同选区一起发送，后端只让模型回答
+「替换选区的代码文本」，再用 `difflib` 生成补丁供前端展示接受 / 拒绝。
+
+### `POST /api/projects/{id}/agent/edit`
+
+```json
+{
+  "path": "src/index.ts",
+  "instruction": "把这段校验抽成独立函数并补充注释",
+  "startLine": 12,
+  "endLine": 24,
+  "content": "…当前编辑器内容（可选）…"
+}
+```
+
+- `startLine/endLine` 省略或为 0 → 整文件重写
+- 选区上限 400 行、文件上限 200k 字符
+
+成功：
+
+```ts
+interface InlineEditResult {
+  ok: true
+  mode: 'llm' | 'offline'
+  model?: string
+  path: string
+  scope: 'selection' | 'file'
+  startLine: number
+  endLine: number
+  summary: string
+  rationale?: string
+  replacement: string   // 替换选区的代码文本
+  before: string
+  after: string
+  patch: string         // 标准 unified diff
+  additions: number
+  deletions: number
+}
+```
+
+未配置模型时返回 `200` + `{ ok: false, mode: "offline", error: "未配置可用的推理引擎…" }`，
+前端直接提示，不会写入任何文件。
+
+### `POST /api/projects/{id}/agent/explain`
+
+```json
+{ "path": "src/index.ts", "startLine": 1, "endLine": 30, "content": "…", "question": "这段并发安全吗" }
+```
+
+```ts
+interface ExplainResult {
+  ok: true
+  mode: 'llm' | 'offline'
+  model?: string
+  text: string          // Markdown
+  path: string
+}
+```
+
+未配置模型时返回**结构化静态分析**（依赖、类、函数、导出清单），而不是报错。
+
+---
+
+## 13. 文件写回（编辑器保存）
+
+### `POST /api/projects/{id}/files/write`
+
+```json
+{ "path": "src/index.ts", "content": "…", "side": "target" }
+```
+
+- 只允许升级目录（`side=target`）或原版目录（`side=source`）
+- 拒绝路径穿越、二进制文件、超过 2 MB 的内容
+- 写入后自动刷新 `diff.json`
+
+```json
+{ "ok": true, "path": "src/index.ts", "size": 1234, "updatedAt": 1730000000000 }
+```

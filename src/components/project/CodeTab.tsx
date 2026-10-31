@@ -6,7 +6,7 @@ import type { Side } from '../../../shared/types'
 import { useSessionStore, type ProjectRuntime } from '@/stores/session'
 import { Badge, Button, Segmented, Tooltip } from '@/components/ui'
 import { FileTree } from '@/components/code/FileTree'
-import { FileViewer } from '@/components/code/FileViewer'
+import { CodeEditor } from '@/components/code/CodeEditor'
 
 export function CodeTab({ project, runtime }: { project: Project; runtime?: ProjectRuntime }) {
   const [params, setParams] = useSearchParams()
@@ -78,7 +78,7 @@ export function CodeTab({ project, runtime }: { project: Project; runtime?: Proj
 
       <div className="min-h-0 overflow-hidden rounded-xl border border-border/70 bg-card/40">
         {path ? (
-          <FileViewer projectId={project.id} side={side} path={path} status={fileStatus} className="h-full" />
+          <CodeEditor projectId={project.id} side={side} path={path} className="h-full" />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <div className="grid h-12 w-12 place-items-center rounded-2xl border border-border bg-muted/30 text-muted-foreground">

@@ -26,11 +26,62 @@ SAMPLE = E2E / "sample-repo"
 
 sys.path.insert(0, str(ROOT / "server"))
 
+from tsd.auth import W3Auth  # noqa: E402
 from tsd.chat import ChatAgent  # noqa: E402
 from tsd.config import SettingsStore  # noqa: E402
 from tsd.events import EventHub  # noqa: E402
+from tsd.gitops import GitOps  # noqa: E402
 from tsd.pipeline import UpgradePipeline  # noqa: E402
 from tsd.store import ProjectStore  # noqa: E402
+
+
+def seed_bare_repo(workspace: Path, name: str = "micabc") -> Path:
+    """在 <workspace>/repos 下造一个带提交的裸仓库，供 Git 标签页演示。"""
+    repos = workspace / "repos"
+    repos.mkdir(parents=True, exist_ok=True)
+    bare = repos / f"{name}.git"
+    work = workspace / ".seed-work" / name
+    for path in (bare, work):
+        if path.exists():
+            shutil.rmtree(path, ignore_errors=True)
+    work.mkdir(parents=True, exist_ok=True)
+
+    def git(args: list[str], cwd: Path) -> None:
+        result = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"git {' '.join(args)}: {result.stderr[-300:]}")
+
+    subprocess.run(["git", "init", "--bare", "-b", "main", str(bare)], capture_output=True, text=True)
+    git(["init", "-b", "main"], work)
+    (work / "package.json").write_text(
+        '{\n  "name": "micabc",\n  "version": "1.2.0",\n  "private": true\n}\n', "utf-8"
+    )
+    (work / "README.md").write_text(
+        "# micabc\n\n订单中心示例仓库：订单创建、状态流转与支付回调。\n", "utf-8"
+    )
+    (work / "src").mkdir(exist_ok=True)
+    (work / "src" / "index.ts").write_text(
+        "export interface Order {\n"
+        "  id: string\n"
+        "  amount: number\n"
+        "}\n\n"
+        "export function createOrder(id: string, amount: number): Order {\n"
+        "  if (amount <= 0) throw new Error('amount must be positive')\n"
+        "  return { id, amount }\n"
+        "}\n",
+        "utf-8",
+    )
+    (work / "src" / "auth.ts").write_text(
+        "export function verifySession(token: string): boolean {\n"
+        "  return Boolean(token && token.length > 8)\n"
+        "}\n",
+        "utf-8",
+    )
+    git(["add", "-A"], work)
+    git(["-c", "user.name=Seed", "-c", "user.email=seed@local", "commit", "-m", "chore: initial import"], work)
+    git(["remote", "add", "origin", str(bare)], work)
+    git(["push", "-u", "origin", "main"], work)
+    return bare
 
 
 def build_static(serve_dir: Path) -> None:
@@ -98,11 +149,37 @@ async def seed(workspace: Path) -> dict:
 
         draft = store.create("库存服务", url, "page", "1.1.0", "库存扣减与预占（待执行）")
 
+        # Git 演示项目：本地裸仓库 → 克隆 → 升级（不推送，留给截图展示对比与推送表单）
+        bare = seed_bare_repo(workspace)
+        git_project = store.create("micabc", str(bare), "git", "1.3.0", "Git 仓库示例：订单中心")
+        git_ops = GitOps(store, settings)
+        git_ops.clone(git_project, str(bare))
+        git_project = store.get(git_project["id"])
+        git_run = store.create_run(git_project, "upgrade", "补充订单金额校验与鉴权说明，更新 README。")
+        hub.create(git_run["id"])
+        await pipeline.run(git_project, git_run, git_run["prompt"], "1.3.0")
+
+        # W3 演示凭证 + mock 推理网关（仅在 TSD_DEMO_MOCK_LLM 设置时）
+        auth = W3Auth(settings)
+        await auth.login("demo.engineer", "1234")
+        if os.environ.get("TSD_DEMO_MOCK_LLM"):
+            settings.update(
+                {
+                    "engine": {
+                        "baseUrl": os.environ["TSD_DEMO_MOCK_LLM"],
+                        "model": "mock-edit",
+                        "apiKey": "mock-api-key",
+                        "offlineMode": False,
+                    }
+                }
+            )
+
         result = {
             "workspace": str(workspace),
             "projectId": project["id"],
             "secondProjectId": second["id"],
             "draftProjectId": draft["id"],
+            "gitProjectId": git_project["id"],
             "url": url,
         }
         # pick up the chat messages produced above

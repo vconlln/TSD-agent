@@ -11,6 +11,9 @@ files:
   - package.json
   - '!**/*.map'
   - '!**/*.ts'
+  # 渲染进程与主进程都已打包成 bundle，运行时不需要 node_modules；
+  # 不排除会把 react/monaco 等依赖再塞进 asar（体积翻倍、打包变慢）。
+  - '!node_modules/**'
 
 asar: true
 compression: maximum
@@ -38,11 +41,19 @@ nsis:
   createDesktopShortcut: always
   createStartMenuShortcut: true
   shortcutName: TSD Agent
+  uninstallDisplayName: TSD Agent
+  deleteAppDataOnUninstall: false
+  runAfterFinish: true
+  # 品牌化向导：安装图标 / 侧边栏 / 顶部横图 / 中文文案
   installerIcon: build/icon.ico
   uninstallerIcon: build/icon.ico
   installerHeaderIcon: build/icon.ico
-  deleteAppDataOnUninstall: false
-  runAfterFinish: true
+  installerSidebar: build/installerSidebar.bmp
+  installerHeader: build/installerHeader.bmp
+  include: build/installer.nsh
+  installerLanguages:
+    - zh_CN
+  displayLanguageSelector: false
   artifactName: ${productName}-Setup-${version}.${ext}
 
 portable:

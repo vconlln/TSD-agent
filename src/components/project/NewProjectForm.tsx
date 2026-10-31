@@ -7,6 +7,7 @@ import { useProjectsStore } from '@/stores/projects'
 import { useSessionStore } from '@/stores/session'
 import { Button, Field, Input, Textarea, Badge } from '@/components/ui'
 import { Segmented } from '@/components/ui/core'
+import { RepoPicker } from './RepoPicker'
 
 type SourceKind = 'page' | 'git' | 'zip' | 'local'
 
@@ -133,27 +134,44 @@ export function NewProjectForm({
             }))}
           />
         </div>
-        <div className="flex gap-2">
-          <Input
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            placeholder={meta.placeholder}
-            className="flex-1 font-mono text-[12px]"
-          />
-          {kind === 'local' ? (
-            <Button
-              variant="secondary"
-              size="md"
-              className="shrink-0 gap-1.5"
-              onClick={async () => {
-                const dir = await window.tsd?.pickDirectory('选择项目目录')
-                if (dir) setSource(dir)
+        {kind === 'git' ? (
+          <div className="space-y-2">
+            <RepoPicker
+              onPick={(repo) => {
+                setSource(repo.url)
+                if (!name.trim()) setName(repo.name)
               }}
-            >
-              <FolderOpen className="h-3.5 w-3.5" /> 浏览
-            </Button>
-          ) : null}
-        </div>
+            />
+            <Input
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              placeholder="或直接填写仓库地址：https://git.example.com/group/repo.git"
+              className="font-mono text-[12px]"
+            />
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <Input
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              placeholder={meta.placeholder}
+              className="flex-1 font-mono text-[12px]"
+            />
+            {kind === 'local' ? (
+              <Button
+                variant="secondary"
+                size="md"
+                className="shrink-0 gap-1.5"
+                onClick={async () => {
+                  const dir = await window.tsd?.pickDirectory('选择项目目录')
+                  if (dir) setSource(dir)
+                }}
+              >
+                <FolderOpen className="h-3.5 w-3.5" /> 浏览
+              </Button>
+            ) : null}
+          </div>
+        )}
         <p className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
           <Sparkles className="h-3 w-3 text-primary/70" /> {meta.hint}
         </p>

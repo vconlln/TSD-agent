@@ -14,6 +14,8 @@ export default defineConfig({
     strictPort: true,
     host: '127.0.0.1',
   },
+  // Monaco 的语言服务以 ESM worker 形式分发，需要 module worker 打包。
+  worker: { format: 'es' },
   build: {
     outDir: 'dist/renderer',
     emptyOutDir: true,
@@ -25,6 +27,7 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
+            if (id.includes('monaco-editor')) return 'monaco'
             if (id.includes('shiki')) return 'shiki'
             if (id.includes('react-markdown') || id.includes('remark') || id.includes('micromark') || id.includes('mdast') || id.includes('hast')) return 'markdown'
             if (id.includes('framer-motion')) return 'motion'

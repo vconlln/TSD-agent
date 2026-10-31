@@ -192,8 +192,29 @@ export interface EngineSettings {
   offlineMode: boolean
 }
 
+export interface W3Settings {
+  serverUrl: string
+  loginPath: string
+  modelsPath: string
+  rememberUsername: string
+  configured: boolean
+}
+
+export interface GitSettings {
+  provider: 'local' | 'gitlab' | 'github' | 'generic'
+  baseUrl: string
+  tokenSet: boolean
+  reposPath: string
+  reposRoot: string
+  defaultBranch: string
+  authorName: string
+  authorEmail: string
+}
+
 export interface SettingsPatch {
   engine?: Partial<EngineSettings> & { apiKey?: string }
+  w3?: Partial<W3Settings>
+  git?: Partial<Omit<GitSettings, 'tokenSet'>> & { token?: string }
   workspace?: string
   concurrency?: number
   autoApplyChatEdits?: boolean
@@ -202,6 +223,8 @@ export interface SettingsPatch {
 
 export interface AppSettings {
   engine: EngineSettings
+  w3?: W3Settings
+  git?: GitSettings
   workspace: string
   concurrency: number
   autoApplyChatEdits: boolean
@@ -230,4 +253,151 @@ export interface StartRunInput {
   upgradeRequest: string
   targetVersion?: string
   referenceUrl?: string
+}
+
+/* ------------------------------ W3 auth ------------------------------ */
+
+export interface W3User {
+  id?: string
+  name?: string
+  email?: string
+  department?: string
+  [key: string]: unknown
+}
+
+export interface W3Model {
+  id: string
+  name: string
+  provider?: string
+  contextWindow?: number
+  tags?: string[]
+  recommended?: boolean
+}
+
+export interface W3Status {
+  authenticated: boolean
+  configured: boolean
+  mode: 'w3' | 'demo'
+  user?: W3User
+  expiresAt?: number
+  tokenPreview?: string
+  rememberUsername?: string
+  models: W3Model[]
+}
+
+/* -------------------------------- Git -------------------------------- */
+
+export interface RepoInfo {
+  name: string
+  fullName?: string
+  url: string
+  path?: string
+  description?: string
+  defaultBranch?: string
+  updatedAt?: number
+  provider: string
+}
+
+export interface GitDirtyEntry {
+  path: string
+  status: 'added' | 'modified' | 'deleted' | 'renamed' | 'untracked'
+}
+
+export interface GitStatusInfo {
+  initialized: boolean
+  repoDir?: string
+  gitAvailable?: boolean
+  branch?: string
+  upstream?: string
+  remoteUrl?: string
+  remotes?: Array<{ name: string; url: string }>
+  ahead?: number
+  behind?: number
+  dirty?: GitDirtyEntry[]
+  lastCommit?: { sha: string; message: string; author: string; date: string } | null
+  sourceUrl?: string
+}
+
+export interface GitBranchInfo {
+  current: string
+  local: Array<{ name: string; sha: string; date: string; subject: string }>
+  remote: Array<{ name: string; sha: string; date: string; subject: string }>
+}
+
+export interface GitCompareResult {
+  ok: boolean
+  reason?: string
+  note?: string
+  base?: string
+  branch?: string
+  fetched?: boolean
+  ahead?: number
+  behind?: number
+  commits?: Array<{ sha: string; subject: string }>
+  incoming?: Array<{ sha: string; subject: string }>
+  files?: Array<{ status: string; path: string }>
+}
+
+export interface GitPublishResult {
+  ok: boolean
+  reason?: string
+  note?: string
+  branch?: string
+  sha?: string
+  pushed?: boolean
+  remote?: string
+  url?: string
+  error?: string
+  dirty?: string[]
+  files?: Array<{ path: string; status: string }>
+}
+
+/* --------------------------- Inline agent ---------------------------- */
+
+export interface InlineEditResult {
+  ok: boolean
+  mode?: 'llm' | 'offline'
+  model?: string
+  error?: string
+  path?: string
+  scope?: 'selection' | 'file'
+  startLine?: number
+  endLine?: number
+  summary?: string
+  rationale?: string
+  replacement?: string
+  before?: string
+  after?: string
+  patch?: string
+  additions?: number
+  deletions?: number
+}
+
+export interface ExplainResult {
+  ok: boolean
+  mode?: 'llm' | 'offline'
+  model?: string
+  text: string
+  path?: string
+}
+
+export interface FileWriteResult {
+  ok: boolean
+  path: string
+  size: number
+  updatedAt: number
+}
+
+export interface W3LoginResult extends W3Status {}
+
+export interface GitReposResult {
+  provider: string
+  prefix: string
+  repos: RepoInfo[]
+  note?: string
+}
+
+export interface ModelsResult {
+  models: W3Model[]
+  source: 'w3' | 'builtin'
 }
