@@ -25,6 +25,9 @@ workspace/
 *.log
 npm-debug.log*
 
+# Chromium 截图时落下的拼写词典
+*.bdic
+
 # editor / os
 .DS_Store
 Thumbs.db
