@@ -16,6 +16,9 @@ server/dist/
 backend-dist/tsd-server/
 *.spec.bak
 
+# 交叉构建 Windows 包用的 Wine 前缀 / Windows Python / 下载缓存
+build-tools/
+
 # e2e temp
 scripts/e2e/.tmp/
 

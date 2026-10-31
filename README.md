@@ -206,6 +206,18 @@ npm run dist:win
 
 细节与排错见 [docs/PACKAGING.md](docs/PACKAGING.md)。
 
+### 方式二之补充：在 Linux 上交叉出 Windows 安装包
+
+手边只有 Linux（或 CI 不可用）也能出 `exe`——用 Wine 跑 Windows 版 Python + PyInstaller：
+
+```bash
+bash scripts/build-windows-on-linux.sh --verify
+# 产物：release/TSD Agent-Setup-1.0.0.exe，并在 Wine 里跑一遍打包产物冒烟自检
+```
+
+工具链与缓存都落在 `build-tools/`（已 gitignore）。原理与踩坑见
+[docs/PACKAGING.md](docs/PACKAGING.md)。
+
 ### 方式三：只想先跑起来
 
 ```bash

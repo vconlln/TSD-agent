@@ -129,6 +129,41 @@ npm run dist:win
 
 ---
 
+## 3.5 在 Linux / macOS 上交叉构建 Windows 安装包
+
+没有 Windows 机器、也没法跑 GitHub Actions 时，可以在 Linux 上用 Wine 出 `exe`：
+
+```bash
+SKIP_RENDERER_BUILD=1 bash scripts/build-windows-on-linux.sh --verify
+> 完成：release/TSD Agent-Setup-1.0.0.exe（99 MiB）
+> 冒烟通过： http://127.0.0.1:34113 win32 1.0.0
+```
+
+脚本做的事（`scripts/build-windows-on-linux.sh`）：
+
+| 步骤 | 内容 |
+| --- | --- |
+| 1 | 初始化 Wine 前缀（`build-tools/wineprefix`） |
+| 2 | 下载 Windows 版 Python 3.11 embeddable + 打开 `site` / `pip`（`build-tools/win-python`） |
+| 3 | 在 Wine 里 `pip install -r server/requirements.txt pyinstaller` |
+| 4 | 用 Windows 版 PyInstaller 生成 `tsd-server.exe` → `backend-dist/tsd-server` |
+| 5 | `npm run build`（可用 `SKIP_RENDERER_BUILD=1` 跳过） |
+| 6 | `electron-builder --win nsis --x64`（rcedit / NSIS 通过 Wine 执行） |
+
+要点与坑：
+
+- **PyInstaller 不能跨平台编译**，必须用「Windows 版 Python 在 Wine 里跑」这条路，产出的才是真正的 `PE32+` 可执行文件；
+- 国内网络默认走 npmmirror（Electron、electron-builder 二进制、Python embeddable）与清华 PyPI，可用环境变量覆盖；
+- `ELECTRON_BUILDER_7ZIP_PATH` 会自动指向系统 `7za`，避免 electron-builder 再下一个 7zip；
+- 全部缓存与工具链都在 `build-tools/`（已 gitignore），不会污染 `$HOME`；
+- 脚本末尾 `--verify` 会在 Wine 里启动 unpacked 产物并断言冒烟 JSON（渲染进程 + 内置后端）。
+
+> Wine 下静默安装（`/S`）可能直接返回码 2，这是 Wine + NSIS 的已知限制；
+> GUI 模式能正常启动向导。安装包请在真实 Windows 上安装验证，
+> 或直接用 `release/win-unpacked` 做免安装试用。
+
+---
+
 ## 4. macOS / Linux
 
 ```bash
