@@ -348,7 +348,54 @@ Agent 会真的执行命令、真的改文件，边界必须写在代码里而�
 
 ---
 
-## 10. 一页速查
+---
+
+## 11. 接入推理模型（DeepSeek reasoner / o 系列）
+
+推理模型把「思考」放在单独字段里（DeepSeek 是 `reasoning_content`，OpenAI 是 `reasoning`）。
+显式接进来，思考才对用户可见，「先想清楚再动手」也才成为可观测行为：
+
+```python
+REASONING_KEYS = ("reasoning_content", "reasoning", "thinking")
+
+def extract_reasoning(message):
+    for key in REASONING_KEYS:
+        value = message.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return ""
+```
+
+| 场景 | 做法 |
+| --- | --- |
+| 流水线 Agent（非流式） | `chat_tools` 返回 `{content, reasoning, tool_calls}`，reasoning 作为 `agent.thought` 推给 UI |
+| 对话 Agent（流式） | `chat_stream` 逐块产出 reasoning / content 增量，分别走 `chat.reasoning` / `chat.delta` |
+| 纯文本生成 | `chat` 记录 `last_reasoning`，需要时再取 |
+
+三个坑：
+
+1. **思考不要混进正文**，否则前端把思考当回答渲染，用户看到模型在自言自语；
+2. **步数按「轮」算**，不按 token 算，否则推理模型会把预算烧在思考里；
+3. **取不到就当作空**，老模型没有这个字段是正常的，不要报错。
+
+---
+
+## 12. 对话 Agent：只读工具 + 提案
+
+流水线 Agent 有写盘权限（它本来就在无人值守地改代码），**对话 Agent 不应该有**：
+
+| 工具 | 对话里 | 说明 |
+| --- | --- | --- |
+| `list_files` / `read_file` / `grep` | 允许 | 只读，用来核实事实 |
+| `propose_edit` | 允许 | 提交完整文件内容，后端算好 diff 交前端审阅 |
+| `update_plan` | 允许 | 模型自己维护任务清单，前端渲染成 todo |
+| `write_file` / `delete_file` / `run_command` | 禁止 | 避免「聊两句就被改了」 |
+
+这样「聪明」和「可控」同时成立：模型能读任何代码、能把方案做成补丁，落盘永远由人按。
+
+---
+
+## 13. 一页速查
 
 ```
 智能体 = 模型 × (工具 + 循环 + 验证 + 仓库感知 + 预算 + 事件流)

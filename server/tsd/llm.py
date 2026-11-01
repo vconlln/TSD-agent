@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, AsyncIterator
 
 import httpx
 
 from .parser import use_env_proxy
+
+# 推理模型的常见风格：DeepSeek 用 reasoning_content，OpenAI o 系列用 reasoning
+REASONING_KEYS = ("reasoning_content", "reasoning", "thinking")
 
 
 class LLMError(RuntimeError):
@@ -25,6 +28,19 @@ class LLMClient:
         self.max_tokens = int(engine.get("maxTokens") or 8192)
         self.timeout = float(engine.get("timeoutSec") or 300)
         self.usage: dict[str, int] = {}
+        self.last_reasoning = ""
+
+    # ------------------------------------------------------------------
+    @staticmethod
+    def extract_reasoning(message: dict[str, Any] | None) -> str:
+        """从响应里取「思考过程」：DeepSeek reasoning_content / OpenAI reasoning / 自定义 thinking。"""
+        if not isinstance(message, dict):
+            return ""
+        for key in REASONING_KEYS:
+            value = message.get(key)
+            if isinstance(value, str) and value.strip():
+                return value
+        return ""
 
     # ------------------------------------------------------------------
     def available(self) -> bool:
@@ -87,7 +103,9 @@ class LLMClient:
             payload["response_format"] = {"type": "json_object"}
         data = await self._post(payload)
         choice = (data.get("choices") or [{}])[0]
-        content = (choice.get("message") or {}).get("content") or ""
+        message = choice.get("message") or {}
+        self.last_reasoning = self.extract_reasoning(message)
+        content = message.get("content") or ""
         if not content.strip():
             raise LLMError("模型返回了空内容")
         return content
@@ -145,11 +163,144 @@ class LLMClient:
                     "arguments": args if isinstance(args, dict) else {},
                 }
             )
+        reasoning = self.extract_reasoning(message)
+        self.last_reasoning = reasoning
         return {
             "content": message.get("content") or "",
+            "reasoning": reasoning,
             "tool_calls": normalized,
             "raw": message,
         }
+
+    # ------------------------------------------------------------------
+    async def chat_stream(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        tools: list[dict[str, Any]] | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        json_mode: bool = False,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """流式对话（SSE）。
+
+        逐块产出：
+          {"type": "reasoning", "text": "..."}  思考过程增量
+          {"type": "content",   "text": "..."}  回答增量
+          {"type": "tool_calls", "calls": [...]} 本轮工具调用（流结束后一次性给出）
+          {"type": "done", "finish_reason": "...", "usage": {...}}
+
+        部分内网网关不支持流式：抛 LLMError("stream-unsupported") 让上层退回非流式。
+        """
+        if not self.available():
+            raise LLMError("未配置可用的模型服务")
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": self.temperature if temperature is None else temperature,
+            "max_tokens": max_tokens or self.max_tokens,
+            "stream": True,
+        }
+        if tools:
+            payload["tools"] = tools
+            payload["tool_choice"] = "auto"
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+        }
+        calls: dict[int, dict[str, Any]] = {}
+        finish_reason = ""
+        usage: dict[str, Any] = {}
+        started = False
+
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(self.timeout, connect=min(30.0, self.timeout)),
+                trust_env=use_env_proxy(self.endpoint),
+            ) as client:
+                async with client.stream("POST", self.endpoint, headers=headers, json=payload) as response:
+                    if response.status_code >= 400:
+                        body = (await response.aread()).decode("utf-8", "ignore")[:400]
+                        message = body.replace("\n", " ")
+                        if "stream" in message.lower() or response.status_code >= 400:
+                            raise LLMError(f"模型返回 {response.status_code}：{message}")
+                        raise LLMError(f"模型返回 {response.status_code}：{message}")
+                    async for line in response.aiter_lines():
+                        if not line:
+                            continue
+                        if line.startswith(":"):
+                            continue
+                        if not line.startswith("data:"):
+                            continue
+                        chunk = line[5:].strip()
+                        if not chunk or chunk == "[DONE]":
+                            continue
+                        try:
+                            data = json.loads(chunk)
+                        except Exception:
+                            continue
+                        started = True
+                        if isinstance(data.get("usage"), dict) and data["usage"]:
+                            usage = data["usage"]
+                        for choice in data.get("choices") or []:
+                            delta = choice.get("delta") or {}
+                            reasoning = self.extract_reasoning(delta)
+                            if reasoning:
+                                yield {"type": "reasoning", "text": reasoning}
+                            text = delta.get("content")
+                            if isinstance(text, str) and text:
+                                yield {"type": "content", "text": text}
+                            for call in delta.get("tool_calls") or []:
+                                index = int(call.get("index") or 0)
+                                slot = calls.setdefault(
+                                    index,
+                                    {"id": "", "name": "", "arguments": ""},
+                                )
+                                if call.get("id"):
+                                    slot["id"] = call["id"]
+                                function = call.get("function") or {}
+                                if function.get("name"):
+                                    slot["name"] = function["name"]
+                                fragment = function.get("arguments")
+                                if isinstance(fragment, str):
+                                    slot["arguments"] += fragment
+                                elif isinstance(fragment, dict):
+                                    slot["arguments"] += json.dumps(fragment, ensure_ascii=False)
+                            if choice.get("finish_reason"):
+                                finish_reason = str(choice["finish_reason"])
+        except httpx.HTTPError as exc:
+            raise LLMError(f"模型请求失败：{exc}") from exc
+
+        if not started:
+            raise LLMError("stream-unsupported")
+
+        if usage:
+            self.usage["inputTokens"] = self.usage.get("inputTokens", 0) + int(usage.get("prompt_tokens") or 0)
+            self.usage["outputTokens"] = self.usage.get("outputTokens", 0) + int(usage.get("completion_tokens") or 0)
+
+        if calls:
+            normalized: list[dict[str, Any]] = []
+            for index in sorted(calls):
+                slot = calls[index]
+                raw_args = slot.get("arguments") or "{}"
+                try:
+                    args = json.loads(raw_args)
+                except Exception:
+                    args = {"__raw": raw_args}
+                normalized.append(
+                    {
+                        "id": slot.get("id") or f"call_{index}",
+                        "name": slot.get("name") or "",
+                        "arguments": args if isinstance(args, dict) else {},
+                    }
+                )
+            yield {"type": "tool_calls", "calls": normalized}
+
+        yield {"type": "done", "finish_reason": finish_reason, "usage": usage}
 
     # ------------------------------------------------------------------
     @staticmethod

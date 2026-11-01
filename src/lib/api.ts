@@ -219,10 +219,10 @@ export const api = {
 
   startRun: (id: string, input: StartRunInput) =>
     request<{ runId: string; run: Run }>(`/api/projects/${id}/run`, { method: 'POST', body: JSON.stringify(input) }),
-  startChat: (id: string, message: string, conversationId?: string) =>
+  startChat: (id: string, message: string, history?: Array<{ role: string; content: string }>) =>
     request<{ runId: string }>(`/api/projects/${id}/chat`, {
       method: 'POST',
-      body: JSON.stringify({ message, conversationId }),
+      body: JSON.stringify({ message, history: history ?? [] }),
     }),
   cancelRun: (runId: string) => request<{ ok: boolean }>(`/api/runs/${runId}/cancel`, { method: 'POST' }),
   getRun: (runId: string) => request<Run>(`/api/runs/${runId}`),

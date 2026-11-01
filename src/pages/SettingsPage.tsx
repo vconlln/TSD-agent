@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Cpu,
   Database,
@@ -71,13 +71,25 @@ export function SettingsPage() {
 
   const bridge = window.tsd
 
+  // 读取设置：失败自动重试（后端刚重启 / 页面刚切过来时最容易失败），仍失败再让用户手动点重试
+  const loadSettings = useCallback(async (attempt = 0): Promise<void> => {
+    try {
+      const next = await api.getSettings()
+      setSettings(next)
+      setError(null)
+    } catch (err) {
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)))
+        return loadSettings(attempt + 1)
+      }
+      setError((err as Error).message || '读取配置失败')
+    }
+  }, [])
+
   useEffect(() => {
-    void api
-      .getSettings()
-      .then(setSettings)
-      .catch((err) => setError((err as Error).message))
+    void loadSettings()
     if (bridge) void bridge.getConfig().then(setConfig).catch(() => undefined)
-  }, [bridge])
+  }, [bridge, loadSettings])
 
   const saveEngine = async () => {
     if (!settings) return
@@ -156,8 +168,19 @@ export function SettingsPage() {
         />
 
         {error ? (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/[0.06] px-3 py-2 text-[12px] text-destructive">
-            {error}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/[0.06] px-3 py-2 text-[12px] text-destructive">
+            <span className="min-w-0 flex-1">读取配置失败：{error}</span>
+            <Button
+              size="xs"
+              variant="outline"
+              className="gap-1"
+              onClick={() => {
+                setError(null)
+                void loadSettings()
+              }}
+            >
+              <RefreshCw className="h-3 w-3" /> 重试
+            </Button>
           </div>
         ) : null}
 

@@ -16,6 +16,7 @@ export function CodeBlock({
   maxHeight,
   actions,
   wrap: wrapProp,
+  showHeader,
 }: {
   code: string
   lang?: string
@@ -26,6 +27,7 @@ export function CodeBlock({
   maxHeight?: number | string
   actions?: React.ReactNode
   wrap?: boolean
+  showHeader?: boolean
 }) {
   const mode = useAppStore((s) => s.appearance.mode)
   const wrapSetting = useAppStore((s) => s.appearance.codeWrap)
@@ -70,7 +72,7 @@ export function CodeBlock({
         className,
       )}
     >
-      {(filename || actions) && (
+      {(filename || actions || showHeader) && (
         <div className="flex items-center justify-between gap-2 border-b border-border/70 bg-card/50 px-2.5 py-1.5">
           <div className="flex min-w-0 items-center gap-2">
             {filename ? (

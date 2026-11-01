@@ -3,6 +3,8 @@ import type {
   AgentEvent,
   AgentTraceEntry,
   ChatMessage,
+  ChatPlanStep,
+  ChatToolCall,
   CodeProposal,
   DiffPayload,
   Documents,
@@ -17,6 +19,32 @@ import type {
 } from '../../shared/types'
 import { api, ApiError, streamRunEvents, type StreamHandle } from '../lib/api'
 import { useProjectsStore } from './projects'
+
+/**
+ * 流式增量缓冲：把高频的 chat.delta / chat.reasoning 合并成一次状态更新。
+ * 33ms ≈ 两帧，人眼仍觉得是「逐字出现」，但渲染次数下降一个数量级。
+ */
+const streamBuffer = new Map<string, { content: string; reasoning: string; firstReasoningAt?: number }>()
+let streamTimer: ReturnType<typeof setTimeout> | null = null
+const STREAM_FLUSH_MS = 33
+
+let flushStreamBuffer: () => void = () => {}
+
+function queueStreamDelta(projectId: string, runId: string, kind: 'chat.delta' | 'chat.reasoning', text: string) {
+  const key = projectId + '|' + runId
+  const slot = streamBuffer.get(key) ?? { content: '', reasoning: '' }
+  if (kind === 'chat.delta') slot.content += text
+  else {
+    slot.reasoning += text
+    if (!slot.firstReasoningAt) slot.firstReasoningAt = Date.now()
+  }
+  streamBuffer.set(key, slot)
+  if (streamTimer) return
+  streamTimer = setTimeout(() => {
+    streamTimer = null
+    flushStreamBuffer()
+  }, STREAM_FLUSH_MS)
+}
 
 export interface LogLine {
   id: string
@@ -155,6 +183,39 @@ export const useSessionStore = create<SessionState>((set, get) => {
     })
   }
 
+  // 流式增量在这里落地：一次 set 批量应用所有缓冲的 delta
+  flushStreamBuffer = () => {
+    if (streamBuffer.size === 0) return
+    const batches = [...streamBuffer.entries()]
+    streamBuffer.clear()
+    for (const [key, slot] of batches) {
+      const [projectId, runId] = key.split('|')
+      const messageId = 'a-' + runId
+      mutateRuntime(projectId, (rt) => {
+        let touched = false
+        const chat = rt.chat.map((message) => {
+          if (message.id !== messageId) return message
+          touched = true
+          const next: ChatMessage = {
+            ...message,
+            content: message.content + slot.content,
+            reasoning: slot.reasoning ? (message.reasoning ?? '') + slot.reasoning : message.reasoning,
+            streaming: true,
+          }
+          if (slot.reasoning && !message.reasoningStartedAt) {
+            next.reasoningStartedAt = slot.firstReasoningAt ?? Date.now()
+          }
+          // 正文一开始出现，就定格「思考用时」
+          if (slot.content && next.reasoningStartedAt && !message.reasoningMs) {
+            next.reasoningMs = Math.max(1, Date.now() - next.reasoningStartedAt)
+          }
+          return next
+        })
+        return touched ? { chat } : {}
+      })
+    }
+  }
+
   return {
     runtimes: {},
 
@@ -288,7 +349,11 @@ export const useSessionStore = create<SessionState>((set, get) => {
         return { chat }
       })
       try {
-        const { runId } = await api.startChat(projectId, trimmed)
+        const history = (get().runtimes[projectId]?.chat ?? [])
+          .filter((message) => !message.streaming && !message.error && message.content.trim())
+          .slice(-10)
+          .map((message) => ({ role: message.role, content: message.content }))
+        const { runId } = await api.startChat(projectId, trimmed, history)
         runToProject.set(runId, projectId)
         const assistant: ChatMessage = {
           id: `a-${runId}`,
@@ -391,6 +456,13 @@ export const useSessionStore = create<SessionState>((set, get) => {
 
     handleEvent: (projectId, event) => {
       runToProject.set(event.runId, projectId)
+      // 流式增量单独走批量通道：几百个小 delta 合并成 ~30ms 一次的状态更新，
+      // 否则每条 token 都会触发整棵对话树重渲染（长回答时肉眼可见地卡）。
+      if (event.type === 'chat.delta' || event.type === 'chat.reasoning') {
+        const text = event.delta || ((event.data?.delta as string) ?? '')
+        if (text) queueStreamDelta(projectId, event.runId, event.type, text)
+        return
+      }
       mutateRuntime(projectId, (rt) => {
         const events = [...rt.events, event].slice(-4000)
         let logs = rt.logs
@@ -521,6 +593,39 @@ export const useSessionStore = create<SessionState>((set, get) => {
             chat = chat.map((m) => (m.id === messageId ? { ...m, content: m.content + delta, streaming: true } : m))
             break
           }
+          case 'chat.tool': {
+            const data = (event.data ?? {}) as {
+              id?: string
+              tool?: string
+              args?: Record<string, unknown>
+              ok?: boolean
+              durationMs?: number
+              preview?: string
+              observation?: string
+            }
+            const messageId = `a-${event.runId}`
+            const entry: ChatToolCall = {
+              id: String(data.id || `tool-${event.seq}`),
+              tool: String(data.tool || ''),
+              args: data.args || {},
+              ok: data.ok !== false,
+              durationMs: Number(data.durationMs || 0),
+              preview: data.preview,
+              observation: data.observation,
+            }
+            chat = chat.map((m) =>
+              m.id === messageId ? { ...m, tools: [...(m.tools ?? []), entry].slice(-24) } : m,
+            )
+            break
+          }
+          case 'chat.plan': {
+            const data = (event.data ?? {}) as { steps?: ChatPlanStep[] }
+            const messageId = `a-${event.runId}`
+            chat = chat.map((m) =>
+              m.id === messageId && Array.isArray(data.steps) ? { ...m, plan: data.steps } : m,
+            )
+            break
+          }
           case 'chat.message': {
             const data = (event.data ?? {}) as Partial<ChatMessage> & { replacedContent?: boolean }
             const messageId = `a-${event.runId}`
@@ -530,6 +635,7 @@ export const useSessionStore = create<SessionState>((set, get) => {
                     ...m,
                     content: data.content ?? m.content,
                     streaming: false,
+                    reasoning: m.reasoning,
                     thinking: data.thinking ?? m.thinking,
                     proposal: (data.proposal as CodeProposal) ?? m.proposal,
                     error: data.error,

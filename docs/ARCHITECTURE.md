@@ -131,6 +131,31 @@ while 未完成 & 未超预算：  LLM → thought + tool_call → 执行 → �
 
 设计取舍与移植到其它后端的清单见 [AGENT-DESIGN.md](AGENT-DESIGN.md)。
 
+### 对话 Agent（流式 + 思考 + 工具）
+
+项目页「对话」不是简单的问答，而是一次真正的多轮工具对话（`server/tsd/chat_agent.py`）：
+
+```
+用户发言 → 拼上下文（方案节选 + 文件列表 + history）
+   ↓
+while 未超过轮数上限（默认 6）：
+   LLM 流式输出 ── reasoning_content → chat.reasoning（思考过程）
+                ├─ content          → chat.delta（正文，逐字）
+                └─ tool_calls       → 执行只读工具 / propose_edit → chat.tool
+   ↓
+chat.message（最终回答 + 可审阅的 CodeProposal）
+```
+
+要点：
+
+- **只读 + 提案**：对话里的工具是 `list_files` / `read_file` / `grep` / `propose_edit` / `update_plan`，
+  没有任何写盘能力——改动必须由用户点「应用到代码」才落盘（`POST /apply`）。
+- **两种降级**：网关不支持流式 → 'stream-unsupported' → 退回非流式 JSON 协议；
+  不支持 tools → 去掉工具重试一次；都没有 → 离线启发式。
+- **前端零重写**：非流式路径同样只推 `chat.delta`（服务端按 36 字切片）+ `chat.message`。
+- **性能**：前端把 `chat.delta` / `chat.reasoning` 放进 33ms 的批量缓冲再一次性 set，
+  避免每个 token 触发整棵对话树重渲染；已完成的助手消息用 `React.memo` 冻结。
+
 ### LLM 适配层
 
 `server/tsd/llm.py` 只依赖 OpenAI 兼容的 `/chat/completions`：

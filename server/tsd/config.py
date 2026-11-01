@@ -77,6 +77,32 @@ class SettingsStore:
 
     def _load(self) -> dict[str, Any]:
         data = json.loads(json.dumps(DEFAULTS))
+        # 出厂默认配置：打包时可以把内网网关地址 / 模型名预置进 resources/defaults.json，
+        # 用户第一次启动就带着内网地址，不需要手工填（TSD_DEFAULTS_FILE 指向该文件）。
+        bundled = os.environ.get("TSD_DEFAULTS_FILE")
+        if bundled:
+            try:
+                path = Path(bundled)
+                if path.exists():
+                    preset = json.loads(path.read_text("utf-8"))
+                    if isinstance(preset, dict):
+                        for block, defaults in (
+                            ("engine", DEFAULT_ENGINE),
+                            ("agent", DEFAULT_AGENT),
+                            ("w3", DEFAULT_W3),
+                            ("git", DEFAULT_GIT),
+                        ):
+                            values = preset.get(block) or {}
+                            if isinstance(values, dict):
+                                data[block] = {
+                                    **data[block],
+                                    **{k: v for k, v in values.items() if k in defaults},
+                                }
+                        for key in ("concurrency", "autoApplyChatEdits", "language"):
+                            if key in preset:
+                                data[key] = preset[key]
+            except Exception:
+                pass
         try:
             if self.path.exists():
                 raw = json.loads(self.path.read_text("utf-8"))

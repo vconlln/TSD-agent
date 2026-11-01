@@ -39,9 +39,16 @@ class RunBody(BaseModel):
     referenceUrl: str | None = None
 
 
+class ChatMessageIn(BaseModel):
+    role: str
+    content: str
+
+
 class ChatBody(BaseModel):
     message: str
     conversationId: str | None = None
+    # 多轮上下文：前端把最近的对话历史带上，模型才知道「这个」「刚才那个」指什么
+    history: list[ChatMessageIn] = []
 
 
 class ApplyBody(BaseModel):
@@ -239,7 +246,8 @@ def create_app(workspace: Path) -> FastAPI:
         run_refs[run["id"]] = run
         channel = hub.create(run["id"])
         channel.log("收到对话请求")
-        task = asyncio.create_task(chat_agent.run(project, run, body.message))
+        history = [{"role": item.role, "content": item.content} for item in body.history][-20:]
+        task = asyncio.create_task(chat_agent.run(project, run, body.message, history))
         tasks[run["id"]] = task
         task.add_done_callback(lambda _t, rid=run["id"]: tasks.pop(rid, None))
         return {"runId": run["id"]}

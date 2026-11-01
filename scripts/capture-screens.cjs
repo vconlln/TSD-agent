@@ -201,20 +201,32 @@ async function main() {
     return Boolean(button)
   })()`)
   if (sent) {
-    // 流式回复：先确认生成开始，再等它结束（生成中 / 正在理解需求 / Agent 正在工作 全部消失）
-    const STREAMING =
-      "document.body.innerText.includes('生成中') || document.body.innerText.includes('正在理解需求') || document.body.innerText.includes('Agent 正在工作')"
-    let started = false
-    for (let attempt = 0; attempt < 100; attempt++) {
+    // 流式回复：等到「思考 + 工具 + 补丁建议」都出现、并且不再处于生成中
+    for (let attempt = 0; attempt < 150; attempt++) {
       await sleep(400)
-      const streaming = await evalJs(STREAMING)
-      if (streaming) started = true
-      if (started && !streaming) break
-      if (!started && attempt > 15) break // 极快的离线回复：没有过渡态
-      if (attempt === 80) await audit('chat-streaming')
+      const state = await evalJs(
+        "(() => { const t = document.body.innerText || ''; return {" +
+        "streaming: t.includes('正在读取项目并思考') || t.includes('正在思考') || t.includes('Agent 正在工作')," +
+        "done: t.includes('代码修改建议') || t.includes('应用到代码') || t.includes('离线模式')}; })()",
+      )
+      if (!state.streaming && state.done) break
+      if (attempt === 120) await audit('chat-streaming')
     }
   }
   await sleep(1500)
+  // 展开「已思考」折叠块，另存一张展示思考过程
+  const expanded = await evalJs(
+    "(() => { const buttons = [...document.querySelectorAll('button')]; const target = buttons.find((b) => (b.textContent || '').includes('已思考') || (b.textContent || '').includes('思考过程')); if (!target) return false; target.click(); return true })()",
+  )
+  if (expanded) {
+    await sleep(600)
+    await audit('chat-reasoning')
+    await shot('14-chat-reasoning')
+    await evalJs(
+      "(() => { const buttons = [...document.querySelectorAll('button')]; const target = buttons.find((b) => (b.textContent || '').includes('已思考') || (b.textContent || '').includes('思考过程')); if (target) target.click(); return true })()",
+    )
+    await sleep(400)
+  }
   await audit('chat')
   await shot('06-chat')
 

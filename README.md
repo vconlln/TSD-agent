@@ -43,8 +43,12 @@ TSD Agent 把这条链路交给一个自动化的 Agent 流水线，你只需要
 - **差异即交付物**
   - 方案差异：按章节对比新增 / 修改 / 删除，支持整篇统一差异视图。
   - 代码差异：文件树 A/M/D 标记、行级 `+/-` 统计、单列 / 并排两种布局、词级高亮、语法着色、超大文件折叠。
-- **对话式迭代**：输出完成后继续和 Agent 对话，它会给出**可审阅的补丁建议**，你点「应用到代码」才会真正落盘，差异随即刷新。
-- **7 套主题 × 深浅模式**：极光紫、深海蓝、翡翠绿、落日橙、玫瑰红、樱花粉、石墨灰；密度、圆角、背景特效、代码换行、差异布局全部可调，实时生效并持久化。
+- **对话式迭代（DeepSeek 风格）**：升级完成后继续和 Agent 对话——它是**流式**的：先给一段可折叠的「思考过程」，
+  再逐字输出回答；需要动代码时它会自己 `list_files` / `read_file` / `grep` 核实，再用 `propose_edit` 提交补丁建议，
+  你点「应用到代码」才真正落盘。Markdown、代码块（带复制）、表格、任务清单都能渲染。
+- **推理模型接入**：后端同时支持 DeepSeek 的 `reasoning_content`（deepseek-reasoner）、OpenAI o 系列的 `reasoning`，
+  思考过程与正文分开推送（`chat.reasoning` / `chat.delta`），不会混在一起。
+- **13 套主题 × 深浅模式**：极光紫、深海蓝、翡翠绿、落日橙、玫瑰红、樱花粉、石墨灰、霓虹赛博、摩卡棕、薄荷青、午夜靛、琥珀金、终端绿；密度、圆角、背景特效、代码换行、差异布局全部可调，实时生效并持久化。
 - **后端可替换**：前端只依赖一套 HTTP + SSE 契约（见 [docs/API.md](docs/API.md)）。既可以用随包分发的参考后端，也可以在设置里连接**你自己的 Python 服务**。
 - **四种代码来源**：方案网页 / Git 仓库 / 代码压缩包 / 本地目录，页面里还能自动发现 GitHub 或 zip 链接。
 - **W3 凭证登录**：在设置里用内网账号换访问凭证并拉取可用模型清单；网关地址属于部署细节，
@@ -63,12 +67,12 @@ TSD Agent 把这条链路交给一个自动化的 Agent 流水线，你只需要
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/01-workbench.png" alt="工作台：输入项目名与升级方案" /></td>
     <td width="50%"><img src="docs/screenshots/02-project-overview.png" alt="项目概览：7 步流水线与实时指标" /></td>
+    <td width="50%"><img src="docs/screenshots/13-agent-tab.png" alt="Agent 轨迹时间线" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>工作台 · 一条表单启动全流程</sub></td>
     <td align="center"><sub>项目概览 · 流水线 / 进度环 / 变更统计</sub></td>
+    <td align="center"><sub>Agent 轨迹 · 思考 / 工具调用 / 验证结果</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/03-plan-diff.png" alt="方案差异：按章节对比" /></td>
@@ -95,26 +99,28 @@ TSD Agent 把这条链路交给一个自动化的 Agent 流水线，你只需要
     <td align="center"><sub>设置 · W3 登录取凭证 + 模型清单</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/screenshots/13-agent-tab.png" alt="Agent 轨迹时间线" /></td>
     <td width="50%"><img src="docs/screenshots/04-code.png" alt="代码浏览与编辑" /></td>
+    <td width="50%"><img src="docs/screenshots/08-workbench-light.png" alt="浅色 + 深海蓝主题" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>Agent 轨迹 · 思考 / 工具调用 / 验证结果</sub></td>
     <td align="center"><sub>Monaco 编辑器 · 原版 / 升级版切换</sub></td>
+    <td align="center"><sub>浅色模式 + 深海蓝</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/06-chat.png" alt="流式对话与可审阅补丁" /></td>
+    <td width="50%"><img src="docs/screenshots/14-chat-reasoning.png" alt="思考过程展开" /></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>对话 · 流式回答 + 工具调用 + 补丁建议</sub></td>
+    <td align="center"><sub>思考过程 · 可展开回看，显示耗时</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/screenshots/07-theme-panel.png" alt="外观面板" /></td>
-    <td width="50%"><img src="docs/screenshots/06-chat.png" alt="对话式修改" /></td>
+    <td width="50%"><img src="docs/screenshots/01-workbench.png" alt="工作台" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>外观面板 · 7 套主题 / 密度 / 圆角 / 特效</sub></td>
-    <td align="center"><sub>对话修改 · 可审阅补丁，一键应用</sub></td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="docs/screenshots/08-workbench-light.png" alt="浅色 + 深海蓝主题" /></td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center"><sub>浅色模式 + 深海蓝（同一套组件，仅切换 CSS 变量）</sub></td>
+    <td align="center"><sub>外观面板 · 13 套主题 / 密度 / 圆角 / 特效</sub></td>
+    <td align="center"><sub>工作台 · 一条表单启动全流程</sub></td>
   </tr>
 </table>
 
@@ -217,6 +223,21 @@ bash scripts/build-windows-on-linux.sh --verify
 
 工具链与缓存都落在 `build-tools/`（已 gitignore）。原理与踩坑见
 [docs/PACKAGING.md](docs/PACKAGING.md)。
+
+### 方式三：内网定制打包（加依赖 / 加资源 / 预置网关）
+
+后续要在内网加东西（内部 SDK、证书、预置网关地址），用同一个入口，不用改配置：
+
+```bash
+node scripts/build-installer.mjs --target win \
+  --extra-pip "internal-sdk==1.2.0" \
+  --add assets/internal-ca.crt:ca/internal-ca.crt \
+  --defaults scripts/presets/intranet.json \
+  --version 1.1.0 --verify
+```
+
+`--defaults` 打进去后，用户首次启动就带着内网网关地址与模型名（可在设置里覆盖）。
+详见 [docs/PACKAGING.md](docs/PACKAGING.md#7-内网定制打包)。
 
 ### 方式三：只想先跑起来
 
@@ -324,19 +345,21 @@ TSD-agent/
 ```bash
 npm run typecheck        # 全量 TypeScript 检查（渲染进程 + 主进程）
 npm run build            # 生产构建
-npm run e2e:all          # 端到端：升级流水线 + 凭证 / Git / 编辑器 AI + Agent 循环
+npm run e2e:all          # 端到端：升级流水线 + 凭证 / Git / 编辑器 AI + Agent 循环 + 流式对话
+npm run ui:check         # 无头 Electron 走一遍主要页面组合，抓白屏 / 组件崩溃 / 控制台报错
 npm run seed:demo        # 生成一份演示工作区（离线跑通，可直接用 GUI 打开）
 npm run screenshots      # 无头 Electron 渲染截图 + DOM 布局自检
 ```
 
-E2E 不需要 API Key：常规链路走离线模式，Agent 循环用 `scripts/e2e/mock_llm.py` 提供脚本化的假模型，
-因此在内网、离线、CI 里都能跑。合计 90+ 断言：
+E2E 不需要 API Key：常规链路走离线模式，Agent 与对话用 `scripts/e2e/mock_llm.py` 提供脚本化的假模型
+（支持流式 + `reasoning_content`），因此在内网、离线、CI 里都能跑。合计 118 项断言：
 
 | 套件 | 断言数 | 覆盖 |
 | --- | --- | --- |
 | `npm run e2e` | 33 | SSE 事件、差异补丁、目录树、文件读取、补丁应用、导出与删除 |
 | `npm run e2e:git` | 37 | W3 凭证、模型清单、Git 检索/克隆/对比/推送、编辑器内 AI |
 | `npm run e2e:agent` | 23 | 工具协议、验证循环、JSON 降级、沙箱拦截、步骤持久化 |
+| `npm run e2e:chat` | 25 | 流式思考、工具调用、补丁建议、应用落盘、多轮上下文、离线降级 |
 
 打包产物另有一层自检：`npm run verify:package`。
 

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Toaster } from 'sonner'
@@ -11,12 +11,48 @@ import { useAppStore } from '@/stores/app'
 import { useProjectsStore } from '@/stores/projects'
 import { Button } from '@/components/ui'
 
+function ConnectionBanner() {
+  const ready = useAppStore((s) => s.apiReady)
+  const health = useAppStore((s) => s.health)
+  const { retry } = useBackend()
+  const [busy, setBusy] = useState(false)
+  // 曾经连上过才用细条提示：这时候页面内容还在，只是链路抖了一下
+  if (ready || !health) return null
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-11 z-[80] flex justify-center px-4">
+      <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[hsl(var(--warning)/0.4)] bg-card/95 px-3 py-1.5 text-[11.5px] text-foreground shadow-float backdrop-blur">
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-[hsl(var(--warning))]" />
+        与本地引擎的连接中断，正在自动重试…
+        <Button
+          size="xs"
+          variant="ghost"
+          className="h-5 px-1.5 text-[11px]"
+          loading={busy}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              await retry()
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
+          立即重试
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 function BackendGate() {
   const ready = useAppStore((s) => s.apiReady)
+  const health = useAppStore((s) => s.health)
   const backend = useAppStore((s) => s.backend)
   const { retry } = useBackend()
   const starting = backend.state === 'starting'
   if (ready) return null
+  // 连上过一次（有 health）就不再全屏遮挡：偶发抖动不该让整页变白
+  if (health) return null
   const failing = backend.state === 'offline' || backend.state === 'error'
 
   return (
@@ -131,6 +167,7 @@ export function AppShell() {
 
       <ThemePanel />
       <BackendGate />
+      <ConnectionBanner />
       <Toaster
         theme={mode}
         position="bottom-right"

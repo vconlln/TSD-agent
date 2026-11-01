@@ -44,7 +44,16 @@ export const MarkdownView = memo(function MarkdownView({
               )
             }
             const lang = /language-([\w-]+)/.exec(cls || '')?.[1] || 'text'
-            return <CodeBlock code={text.replace(/\n$/, '')} lang={lang} className="my-4" dense />
+            return (
+              <CodeBlock
+                code={text.replace(/\n$/, '')}
+                lang={lang}
+                className="my-3"
+                dense
+                showHeader
+                maxHeight={420}
+              />
+            )
           },
         }}
       >

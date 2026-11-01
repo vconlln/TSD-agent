@@ -270,8 +270,13 @@ class CodeAgent:
                     return await self._decide_json(messages)
                 raise
             calls = response.get("tool_calls") or []
+            content = (response.get("content") or "").strip()
+            reasoning = (response.get("reasoning") or "").strip()
+            # 推理模型（DeepSeek reasoner / o 系列）把思考放在 reasoning_content，
+            # 这里统一当成「思考」推到界面上，用户能看到它在想什么。
             return {
-                "thought": (response.get("content") or "").strip(),
+                "thought": content or reasoning,
+                "reasoning": reasoning,
                 "calls": calls,
                 "content": response.get("content") or "",
             }

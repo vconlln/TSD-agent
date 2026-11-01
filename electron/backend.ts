@@ -138,10 +138,15 @@ export class BackendSupervisor {
     const args = [...entry.args, '--port', String(port), '--workspace', workspace, '--host', '127.0.0.1']
     try {
       mkdirSync(workspace, { recursive: true })
+      // 打包时可以由 scripts/build-installer.mjs 塞入 resources/defaults.json，
+      // 让内网部署首次启动就带着网关地址 / 模型名，不用用户手填。
+      const bundledDefaults = path.join(process.resourcesPath, 'defaults.json')
+      const defaultsEnv = existsSync(bundledDefaults) ? { TSD_DEFAULTS_FILE: bundledDefaults } : {}
       const child = spawn(entry.command, args, {
         cwd: entry.cwd,
         env: {
           ...process.env,
+          ...defaultsEnv,
           PYTHONUNBUFFERED: '1',
           PYTHONIOENCODING: 'utf-8',
           TSD_WORKSPACE: workspace,

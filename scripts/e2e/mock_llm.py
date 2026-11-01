@@ -1,21 +1,23 @@
 #!/usr/bin/env python3
-"""极简 OpenAI 兼容 mock：同时支持工具调用、行内修改与解释，用于端到端验证与截图。
+"""极简 OpenAI 兼容 mock：支持工具调用、流式（含 reasoning_content）、行内修改与解释。
 
-- 请求里带 tools 时：按"读文件 → 改文件 → 跑测试 → 结束"的脚本返回 tool_calls
-- 不带 tools 时：沿用行内修改/解释的应答
+- 带 tools + stream：模拟「思考 → 调工具 → 再思考 → 给答案」的对话 Agent
+- 带 tools 非流式：按「读文件 → 改文件 → 跑测试 → 结束」的脚本返回 tool_calls
+- 不带 tools：沿用行内修改 / 解释 / 方案生成的应答
 
 用法：python scripts/e2e/mock_llm.py --port 8799
 """
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import re
 import time
 import uuid
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 app = FastAPI(title="Mock LLM")
 
@@ -125,6 +127,129 @@ def _scripted_json_agent(messages: list[dict]) -> dict:
     return _completion(json.dumps({"thought": "完成", "final": "已通过 JSON 协议完成修改", "changed_files": ["src/index.ts"]}, ensure_ascii=False))
 
 
+# ----------------------------------------------------------------------
+# 流式（SSE）mock：模拟带 reasoning 的对话 Agent
+# ----------------------------------------------------------------------
+CHAT_ANSWER = """### 结论
+
+我把这次改动拆成两件事，已经在下方给出可应用的补丁：
+
+1. **补默认值**：`createOrder` 的 `amount` 增加校验，避免负数金额进库；
+2. **补文档**：把待办与回滚步骤写进 `docs/CHAT_NOTES.md`，方便下次升级对照。
+
+```ts
+export function createOrder(id: string, amount: number): Order {
+  if (amount <= 0) throw new Error('amount must be positive')
+  return { id, amount, status: 'pending' }
+}
+```
+
+需要我把同样的校验也加到 `refundOrder` 里吗？"""
+
+CHAT_NOTES = """# 对话改动记录（mock）
+
+- [x] 金额校验补到 createOrder
+- [ ] 回滚步骤补充到部署文档
+- [ ] 预发环境验证刷新令牌
+"""
+
+
+def _sse(payload: dict) -> str:
+    return "data: " + json.dumps(payload, ensure_ascii=False) + "\n\n"
+
+
+def _delta(payload: dict) -> dict:
+    return {
+        "id": "chatcmpl-mock-" + uuid.uuid4().hex[:8],
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": "mock-edit",
+        "choices": [{"index": 0, "delta": payload, "finish_reason": None}],
+    }
+
+
+def _tool_delta(call_id: str, name: str, args: dict, index: int = 0) -> dict:
+    return _delta(
+        {
+            "tool_calls": [
+                {
+                    "index": index,
+                    "id": call_id,
+                    "type": "function",
+                    "function": {"name": name, "arguments": json.dumps(args, ensure_ascii=False)},
+                }
+            ]
+        }
+    )
+
+
+async def _stream_chat(messages: list[dict], tools: list[dict]):
+    system = str(messages[0].get("content") or "") if messages else ""
+    tool_turns = sum(1 for m in messages if m.get("role") == "assistant" and m.get("tool_calls"))
+    is_chat_agent = "项目升级助手" in system and bool(tools)
+
+    def emit(payload: dict):
+        return _sse(payload)
+
+    if is_chat_agent:
+        if tool_turns == 0:
+            for text in ("先看看项目里都有什么文件，", "再决定要不要读具体实现。"):
+                yield emit(_delta({"reasoning_content": text}))
+                await asyncio.sleep(0.02)
+                yield emit(_delta({"content": ""}))
+            yield emit(_tool_delta("chat_list", "list_files", {"path": ".", "depth": 2}))
+            yield emit({**_delta({}), "choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}]})
+            yield "data: [DONE]\n\n"
+            return
+        if tool_turns == 1:
+            for text in ("清单拿到了，", "把结论写成文档，", "顺便给 createOrder 补个校验。"):
+                yield emit(_delta({"reasoning_content": text}))
+                await asyncio.sleep(0.02)
+            yield emit(
+                _tool_delta(
+                    "chat_edit",
+                    "propose_edit",
+                    {
+                        "path": "docs/CHAT_NOTES.md",
+                        "content": CHAT_NOTES,
+                        "reason": "把这次对话的待办固化下来",
+                    },
+                    index=0,
+                )
+            )
+            yield emit(_tool_delta(
+                "chat_edit2",
+                "propose_edit",
+                {
+                    "path": "docs/CHAT_PLAN.md",
+                    "content": "# 后续计划（mock）\n\n1. 回滚步骤补进部署文档\n2. 预发验证刷新令牌\n",
+                    "reason": "列出后续动作",
+                },
+                index=1,
+            ))
+            yield emit({"choices": [{"index": 0, "delta": {}, "finish_reason": "tool_calls"}]})
+            yield "data: [DONE]\n\n"
+            return
+        for chunk in re.findall(r"[\s\S]{1,6}", CHAT_ANSWER):
+            yield emit(_delta({"content": chunk}))
+            await asyncio.sleep(0.008)
+        yield emit({"choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 320, "completion_tokens": 180}})
+        yield "data: [DONE]\n\n"
+        return
+
+    # 其它场景（方案生成 / 解释）：先给一段思考，再给正文
+    body = "# 升级方案（mock）\n\n## 一、升级目标\n- 补充升级说明\n- 保持接口兼容\n"
+    for text in ("先读需求，", "再落到步骤上。"):
+        yield emit(_delta({"reasoning_content": text}))
+        await asyncio.sleep(0.02)
+    for chunk in re.findall(r"[\s\S]{1,8}", body):
+        yield emit(_delta({"content": chunk}))
+        await asyncio.sleep(0.01)
+    yield emit({"choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]})
+    yield "data: [DONE]\n\n"
+
+
+
 @app.post("/v1/chat/completions")
 async def chat(request: Request) -> JSONResponse:
     body = await request.json()
@@ -133,6 +258,8 @@ async def chat(request: Request) -> JSONResponse:
     system = str(messages[0].get("content") or "") if messages else ""
     user = str(messages[-1].get("content") or "") if messages else ""
 
+    if body.get("stream"):
+        return StreamingResponse(_stream_chat(messages, tools), media_type="text/event-stream")
     if tools:
         return JSONResponse(_scripted_agent(messages))
     if "只输出一个 JSON 对象" in system:

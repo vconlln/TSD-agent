@@ -231,7 +231,50 @@ CI 在 `electron-builder --win nsis` 之后、上传安装包之前执行这一�
 
 ---
 
-## 8. 验证清单
+## 8. 内网定制打包
+
+后续要在内网加点东西（内部 SDK、证书、预置网关地址），用 `scripts/build-installer.mjs` 一个入口搞定：
+
+```bash
+node scripts/build-installer.mjs --target win \
+  --extra-pip "internal-sdk==1.2.0" \
+  --add assets/internal-ca.crt:ca/internal-ca.crt \
+  --defaults scripts/presets/intranet.json \
+  --version 1.1.0 --verify
+```
+
+| 参数 | 作用 |
+| --- | --- |
+| `--target win / linux / dir` | 打包目标（Windows 在 Linux 上会自动走 Wine 交叉构建） |
+| `--extra-pip "a b"` | 额外 pip 依赖，装进随包后端 |
+| `--requirements extra.txt` | 用清单文件声明额外依赖 |
+| `--add src:dest` | 额外文件/目录 → `resources/dest`（可重复） |
+| `--defaults file.json` | 出厂默认配置 → `resources/defaults.json` |
+| `--version x.y.z` | 覆盖版本号（构建后自动还原 package.json） |
+| `--skip-backend / --skip-renderer` | 复用已有产物，加快迭代 |
+| `--verify` | 构建完跑打包产物冒烟（Windows 走 Wine） |
+
+**预置内网网关**（defaults.json）：首次启动时后端把它并入默认设置，用户不用手工填：
+
+```json
+{
+  "engine": {
+    "baseUrl": "https://llm.intra.example.com/v1",
+    "model": "deepseek-reasoner",
+    "timeoutSec": 600
+  },
+  "agent": { "maxSteps": 32, "verify": true }
+}
+```
+
+> 只影响「第一次创建配置」；用户改过之后以工作区里的 `.tsd/config.json` 为准，不会被覆盖。
+
+Electron 主进程检测到 `resources/defaults.json` 时会通过 `TSD_DEFAULTS_FILE` 传给后端，
+开发模式也可以直接设置这个环境变量来验证预置效果。
+
+---
+
+## 9. 验证清单
 
 ```bash
 npm run typecheck                        # 类型检查

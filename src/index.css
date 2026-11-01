@@ -175,6 +175,73 @@
     --aurora-3: 220 6% 70%;
   }
 
+  [data-theme='neon'] {
+    --primary: 300 100% 66%;
+    --primary-foreground: 280 40% 8%;
+    --grad-from: 300 100% 66%;
+    --grad-to: 186 100% 58%;
+    --ring: 300 100% 66%;
+    --brand-soft: 300 100% 66% / 0.14;
+    --aurora-1: 300 100% 62%;
+    --aurora-2: 186 100% 56%;
+    --aurora-3: 262 100% 68%;
+  }
+  [data-theme='mocha'] {
+    --primary: 28 62% 62%;
+    --primary-foreground: 24 40% 8%;
+    --grad-from: 28 62% 62%;
+    --grad-to: 8 52% 54%;
+    --ring: 28 62% 62%;
+    --brand-soft: 28 62% 62% / 0.16;
+    --aurora-1: 28 58% 56%;
+    --aurora-2: 8 48% 50%;
+    --aurora-3: 44 62% 58%;
+  }
+  [data-theme='mint'] {
+    --primary: 168 76% 52%;
+    --primary-foreground: 168 60% 8%;
+    --grad-from: 168 76% 52%;
+    --grad-to: 196 84% 56%;
+    --ring: 168 76% 52%;
+    --brand-soft: 168 76% 52% / 0.14;
+    --aurora-1: 168 76% 50%;
+    --aurora-2: 196 84% 54%;
+    --aurora-3: 140 62% 52%;
+  }
+  [data-theme='indigo'] {
+    --primary: 240 84% 70%;
+    --primary-foreground: 244 40% 8%;
+    --grad-from: 240 84% 70%;
+    --grad-to: 270 80% 64%;
+    --ring: 240 84% 70%;
+    --brand-soft: 240 84% 70% / 0.14;
+    --aurora-1: 240 84% 66%;
+    --aurora-2: 270 80% 62%;
+    --aurora-3: 210 90% 60%;
+  }
+  [data-theme='amber'] {
+    --primary: 42 96% 58%;
+    --primary-foreground: 36 60% 10%;
+    --grad-from: 42 96% 58%;
+    --grad-to: 22 92% 54%;
+    --ring: 42 96% 58%;
+    --brand-soft: 42 96% 58% / 0.14;
+    --aurora-1: 42 96% 54%;
+    --aurora-2: 22 92% 52%;
+    --aurora-3: 60 88% 56%;
+  }
+  [data-theme='matrix'] {
+    --primary: 140 82% 52%;
+    --primary-foreground: 140 60% 6%;
+    --grad-from: 140 82% 52%;
+    --grad-to: 96 74% 48%;
+    --ring: 140 82% 52%;
+    --brand-soft: 140 82% 52% / 0.14;
+    --aurora-1: 140 82% 48%;
+    --aurora-2: 96 74% 46%;
+    --aurora-3: 168 70% 44%;
+  }
+
   [data-mode='light'] [data-theme='emerald'] { --primary-foreground: 0 0% 100%; }
   [data-mode='light'] [data-theme='sunset'] { --primary-foreground: 0 0% 100%; }
   [data-mode='light'] [data-theme='sakura'] { --primary-foreground: 0 0% 100%; }
@@ -186,6 +253,12 @@
   [data-mode='light'][data-theme='rose'] { --primary: 344 82% 52%; --grad-from: 344 82% 52%; --grad-to: 14 86% 54%; --ring: 344 82% 52%; }
   [data-mode='light'][data-theme='sakura'] { --primary: 322 74% 54%; --grad-from: 322 74% 54%; --grad-to: 264 68% 58%; --ring: 322 74% 54%; }
   [data-mode='light'][data-theme='graphite'] { --primary: 220 10% 36%; --grad-from: 220 10% 42%; --grad-to: 220 8% 24%; --ring: 220 10% 40%; }
+  [data-mode='light'][data-theme='neon'] { --primary: 300 88% 48%; --grad-from: 300 88% 48%; --grad-to: 186 88% 40%; --ring: 300 88% 48%; --primary-foreground: 0 0% 100%; }
+  [data-mode='light'][data-theme='mocha'] { --primary: 26 62% 42%; --grad-from: 26 62% 42%; --grad-to: 8 52% 40%; --ring: 26 62% 42%; --primary-foreground: 0 0% 100%; }
+  [data-mode='light'][data-theme='mint'] { --primary: 168 74% 32%; --grad-from: 168 74% 32%; --grad-to: 196 82% 36%; --ring: 168 74% 32%; --primary-foreground: 0 0% 100%; }
+  [data-mode='light'][data-theme='indigo'] { --primary: 240 70% 52%; --grad-from: 240 70% 52%; --grad-to: 270 68% 50%; --ring: 240 70% 52%; --primary-foreground: 0 0% 100%; }
+  [data-mode='light'][data-theme='amber'] { --primary: 36 92% 42%; --grad-from: 36 92% 42%; --grad-to: 20 88% 44%; --ring: 36 92% 42%; --primary-foreground: 0 0% 100%; }
+  [data-mode='light'][data-theme='matrix'] { --primary: 140 74% 30%; --grad-from: 140 74% 30%; --grad-to: 96 66% 32%; --ring: 140 74% 30%; --primary-foreground: 0 0% 100%; }
 
   /* ---------- density ---------- */
   [data-density='compact'] {

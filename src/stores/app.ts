@@ -3,7 +3,20 @@ import { persist } from 'zustand/middleware'
 import type { HealthInfo } from '../../shared/types'
 import type { BackendStatus } from '../../shared/bridge'
 
-export type ThemeId = 'violet' | 'ocean' | 'emerald' | 'sunset' | 'rose' | 'sakura' | 'graphite'
+export type ThemeId =
+  | 'violet'
+  | 'ocean'
+  | 'emerald'
+  | 'sunset'
+  | 'rose'
+  | 'sakura'
+  | 'graphite'
+  | 'neon'
+  | 'mocha'
+  | 'mint'
+  | 'indigo'
+  | 'amber'
+  | 'matrix'
 export type Mode = 'dark' | 'light'
 export type Density = 'cozy' | 'compact'
 export type Effects = 'full' | 'calm' | 'off'
@@ -28,6 +41,12 @@ export const THEMES: Array<{ id: ThemeId; name: string; from: string; to: string
   { id: 'rose', name: '玫瑰红', from: 'hsl(344 88% 62%)', to: 'hsl(14 92% 62%)' },
   { id: 'sakura', name: '樱花粉', from: 'hsl(322 84% 68%)', to: 'hsl(264 80% 72%)' },
   { id: 'graphite', name: '石墨灰', from: 'hsl(220 12% 78%)', to: 'hsl(220 10% 52%)' },
+  { id: 'neon', name: '霓虹赛博', from: 'hsl(300 100% 66%)', to: 'hsl(186 100% 58%)' },
+  { id: 'mocha', name: '摩卡棕', from: 'hsl(28 62% 62%)', to: 'hsl(8 52% 54%)' },
+  { id: 'mint', name: '薄荷青', from: 'hsl(168 76% 52%)', to: 'hsl(196 84% 56%)' },
+  { id: 'indigo', name: '午夜靛', from: 'hsl(240 84% 70%)', to: 'hsl(270 80% 64%)' },
+  { id: 'amber', name: '琥珀金', from: 'hsl(42 96% 58%)', to: 'hsl(22 92% 54%)' },
+  { id: 'matrix', name: '终端绿', from: 'hsl(140 82% 52%)', to: 'hsl(96 74% 48%)' },
 ]
 
 const DEFAULT_APPEARANCE: Appearance = {

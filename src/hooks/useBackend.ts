@@ -14,9 +14,12 @@ export function useBackend() {
   const setApiReady = useAppStore((s) => s.setApiReady)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // 连续失败几次才判定「断开」：单次探测失败（引擎在跑大任务、系统忙）不该把页面打回「启动中」
+  const failures = useRef(0)
   const probeHealth = useCallback(async () => {
     try {
       const health = await api.health()
+      failures.current = 0
       setHealth(health)
       setApiReady(true)
       // Browser / preview mode has no IPC bridge: derive the status from health.
@@ -25,10 +28,13 @@ export function useBackend() {
       }
       return true
     } catch {
-      setHealth(null)
-      setApiReady(false)
-      if (!window.tsd) {
-        setBackend({ state: 'offline', url: api.base(), mode: 'embedded' })
+      failures.current += 1
+      if (failures.current >= 3) {
+        setApiReady(false)
+        setHealth(null)
+        if (!window.tsd) {
+          setBackend({ state: 'offline', url: api.base(), mode: 'embedded' })
+        }
       }
       return false
     }

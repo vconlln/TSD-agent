@@ -1,6 +1,6 @@
 {
   "name": "tsd-agent",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "TSD Agent — 项目方案升级智能体（Electron + React + Python）",
   "author": {
@@ -30,12 +30,15 @@
     "e2e": "node scripts/py.mjs scripts/e2e/run_e2e.py",
     "e2e:git": "node scripts/py.mjs scripts/e2e/run_git_e2e.py",
     "e2e:agent": "node scripts/py.mjs scripts/e2e/run_agent_e2e.py",
-    "e2e:all": "npm run e2e && npm run e2e:git && npm run e2e:agent",
+    "e2e:chat": "node scripts/py.mjs scripts/e2e/run_chat_e2e.py",
+    "e2e:all": "npm run e2e && npm run e2e:git && npm run e2e:agent && npm run e2e:chat",
     "seed:demo": "node scripts/py.mjs scripts/seed_demo.py",
     "screenshots": "electron --no-sandbox --ozone-platform=headless --disable-gpu scripts/capture-screens.cjs",
     "icon": "node scripts/py.mjs scripts/make-icon.py",
     "assets:installer": "node scripts/py.mjs scripts/make-installer-assets.py",
-    "verify:package": "node scripts/verify-packaged-app.mjs"
+    "verify:package": "node scripts/verify-packaged-app.mjs",
+    "dist:installer": "node scripts/build-installer.mjs",
+    "ui:check": "electron --no-sandbox --ozone-platform=headless --disable-gpu scripts/ui-check.cjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",

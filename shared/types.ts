@@ -108,6 +108,9 @@ export interface AgentEvent {
     | 'plan.ready'
     | 'diff.ready'
     | 'chat.delta'
+    | 'chat.reasoning'
+    | 'chat.tool'
+    | 'chat.plan'
     | 'chat.message'
     | 'chat.proposal'
     | 'agent.thought'
@@ -180,6 +183,23 @@ export interface FileContent {
   status?: FileStatus
 }
 
+/** 对话里发生的一次工具调用（后端 chat.tool 事件） */
+export interface ChatToolCall {
+  id: string
+  tool: string
+  args: Record<string, unknown>
+  ok: boolean
+  durationMs: number
+  preview?: string
+  observation?: string
+}
+
+/** 模型自己维护的任务清单（chat.plan 事件） */
+export interface ChatPlanStep {
+  title: string
+  status: 'pending' | 'in_progress' | 'done'
+}
+
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
@@ -187,8 +207,18 @@ export interface ChatMessage {
   ts: number
   runId?: string
   streaming?: boolean
-  proposal?: CodeProposal
+  /** 思考过程（DeepSeek reasoning_content），流式累积 */
+  reasoning?: string
+  /** 思考开始的时间戳（毫秒），用于计算「已思考 Ns」 */
+  reasoningStartedAt?: number
+  /** 思考耗时（毫秒），首个正文 token 到达时定格 */
+  reasoningMs?: number
   thinking?: string
+  /** 本轮对话里调用过的工具 */
+  tools?: ChatToolCall[]
+  /** 模型给出的任务清单 */
+  plan?: ChatPlanStep[]
+  proposal?: CodeProposal
   error?: string
 }
 

@@ -225,6 +225,24 @@ interface Run {
 
 ### `POST /api/projects/{id}/chat`
 
+请求体：
+
+```json
+{
+  "message": "给 createOrder 加金额校验",
+  "history": [
+    { "role": "user", "content": "上一轮用户说了什么" },
+    { "role": "assistant", "content": "上一轮回答（可截断）" }
+  ]
+}
+```
+
+`history` 可选，最多取最后 20 条；带上之后模型才知道「刚才那个文件」指的是哪个。
+
+返回 `{ runId }`，随后从事件流里消费 `chat.reasoning` / `chat.delta` / `chat.tool` / `chat.plan`
+以及最终的 `chat.message`（含 `proposal`）。模型或网关不支持流式时后端自动退回非流式，
+仍然只推 `chat.delta`（分片）与 `chat.message`，前端不需要写两套逻辑。
+
 ```json
 { "message": "把登录改成 JWT 并补充测试", "conversationId": "可选" }
 ```
@@ -275,7 +293,8 @@ interface AgentEvent {
   type:
     | 'run.status' | 'step.status' | 'log'
     | 'artifact' | 'plan.ready' | 'diff.ready'
-    | 'chat.delta' | 'chat.message' | 'chat.proposal'
+    | 'chat.delta' | 'chat.reasoning' | 'chat.tool' | 'chat.plan'
+    | 'chat.message' | 'chat.proposal'
     | 'agent.thought' | 'agent.tool' | 'agent.verify'
     | 'run.metrics' | 'run.done' | 'run.error'
   step?: string         // 关联步骤 key
@@ -293,7 +312,10 @@ interface AgentEvent {
 | `log` | — | 用 `level` / `message` / `step` |
 | `plan.ready` | `{ path, chars }` | 方案文档生成完毕 |
 | `diff.ready` | `{ files }` | 差异计算完毕 |
-| `chat.delta` | — | 用 `delta` 字段，增量文本 |
+| `chat.delta` | `{ delta }` | 回答正文的增量（流式） |
+| `chat.reasoning` | `{ delta }` | 思考过程增量（DeepSeek `reasoning_content` / OpenAI `reasoning`） |
+| `chat.tool` | `{ id, tool, args, ok, durationMs, preview, observation }` | 对话里的一次工具调用 |
+| `chat.plan` | `{ steps: [{ title, status }] }` | 模型自己维护的任务清单 |
 | `chat.message` | `{ content, proposal?, summary?, error? }` | 一条完整的助手消息 |
 | `chat.proposal` | `CodeProposal` | 单独推送补丁建议（可与 chat.message 二选一） |
 | `agent.thought` | `{ text, ts }` | Agent 的一段思考（UI 渲染成时间线气泡） |
