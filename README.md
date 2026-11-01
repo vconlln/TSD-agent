@@ -330,13 +330,32 @@ TSD-agent/
 
 ## 🔌 换成你自己的 Python 后端
 
-你的后端只需要实现 [docs/API.md](docs/API.md) 里的接口，然后：
+前端只依赖一套 **HTTP + SSE 契约**，后端可以完全重写（语言也不限，只要能返回同样的 JSON）。
+全部类型在 [`shared/types.ts`](shared/types.ts)，全部调用点在 [`src/lib/api.ts`](src/lib/api.ts)。
 
-1. 打开「设置 → 后端服务」；
-2. 切到 **外部后端**，填入 `http://127.0.0.1:8000`（需允许 CORS）；
-3. 保存并重启。
+**三步接上**：
 
-或者保留内置模式，只把 `TSD_PYTHON` 指向你的解释器、用 `pythonPath` 指定入口，让 Electron 帮你托管进程。
+1. 打开「设置 → 后端服务」，切到 **外部后端**，填入你的地址（浏览器调试时需允许 CORS）；
+2. 或者开发模式直连：`VITE_API_BASE=http://内网地址:8000 npm run dev:renderer`；
+3. 跑一次契约自检，它会逐条告诉你还差什么：
+
+   ```bash
+   node scripts/contract-check.mjs --api http://内网地址:8000
+   # 必需项 30/30 · 可选项缺 N（不影响主流程）
+   ```
+
+**文档**：
+
+| 文档 | 用途 |
+| --- | --- |
+| [docs/BACKEND-INTEGRATION.md](docs/BACKEND-INTEGRATION.md) | 对接总指南：25 个接口清单、SSE 规则、数据模型、降级矩阵、排错对照表 |
+| [docs/API.md](docs/API.md) | 参照实现的逐字段线上格式 |
+| [docs/AI-PROMPTS.md](docs/AI-PROMPTS.md) | **给内网 AI 的话术包**：把契约贴给它，让它帮你写后端 |
+| [docs/AGENT-DESIGN.md](docs/AGENT-DESIGN.md) | Agent 循环设计与移植清单 |
+
+> 内网场景推荐流程：把 `shared/types.ts` + `src/lib/api.ts` + BACKEND-INTEGRATION 的 §3/§4
+> 喂给你们的内网 AI → 按模块生成本后端骨架 → 每接一块跑一次 `contract-check`。
+> 话术模板见 [docs/AI-PROMPTS.md](docs/AI-PROMPTS.md)。
 
 ---
 
@@ -347,6 +366,7 @@ npm run typecheck        # 全量 TypeScript 检查（渲染进程 + 主进程�
 npm run build            # 生产构建
 npm run e2e:all          # 端到端：升级流水线 + 凭证 / Git / 编辑器 AI + Agent 循环 + 流式对话
 npm run ui:check         # 无头 Electron 走一遍主要页面组合，抓白屏 / 组件崩溃 / 控制台报错
+npm run contract:check   # 对任意后端跑一遍前端真实请求，逐条核对契约（默认 127.0.0.1:8791）
 npm run seed:demo        # 生成一份演示工作区（离线跑通，可直接用 GUI 打开）
 npm run screenshots      # 无头 Electron 渲染截图 + DOM 布局自检
 ```

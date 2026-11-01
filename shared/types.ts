@@ -1,10 +1,20 @@
 /**
- * TSD Agent — shared API contract.
- * Renderer and Electron main both consume these types.
- * The Python backend (server/) implements exactly this contract.
- * See docs/API.md for the wire format.
+ * TSD Agent — 前端与后端之间的唯一类型契约。
+ *
+ * - 渲染进程与 Electron 主进程都从这里取类型；
+ * - 参照实现（server/，Python FastAPI）严格按这里的形状返回；
+ * - 换成你自己的内网后端时：照这里的字段名与语义实现即可，前端不用改。
+ *
+ * 对接文档：
+ *   docs/BACKEND-INTEGRATION.md  接口清单、SSE 规则、降级矩阵、排错对照表
+ *   docs/API.md                  逐字段的线上格式说明
+ *   docs/AI-PROMPTS.md           给内网 AI 的话术（让它帮你写后端）
+ *
+ * 三个最容易踩的点：
+ *   1. 时间戳一律毫秒；
+ *   2. Run.steps 必须在创建 run 时就填好，并随 step.status 事件写回 run 记录；
+ *   3. 事件 seq 按 run 隔离（每个 run 从 1 开始），不要用全局递增。
  */
-
 export type ProjectStatus = 'draft' | 'running' | 'ready' | 'failed'
 export type RunKind = 'upgrade' | 'chat'
 export type RunStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled'

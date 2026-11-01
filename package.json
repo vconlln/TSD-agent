@@ -38,7 +38,8 @@
     "assets:installer": "node scripts/py.mjs scripts/make-installer-assets.py",
     "verify:package": "node scripts/verify-packaged-app.mjs",
     "dist:installer": "node scripts/build-installer.mjs",
-    "ui:check": "electron --no-sandbox --ozone-platform=headless --disable-gpu scripts/ui-check.cjs"
+    "ui:check": "electron --no-sandbox --ozone-platform=headless --disable-gpu scripts/ui-check.cjs",
+    "contract:check": "node scripts/contract-check.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.2",

@@ -1,3 +1,37 @@
+/**
+ * ============================================================================
+ * 前端 → 后端的**全部**网络调用都在这个文件里（要加鉴权头/换网关，改这里一处即可）。
+ * ============================================================================
+ *
+ * 契约原则（换后端时只需要对着这几点做）：
+ *
+ * 1. 所有接口都在同一个 base URL 下，路径固定以 /api/ 开头（见下方 api 对象）。
+ * 2. 长任务异步：POST /run 与 /chat 立刻返回 runId，进度只走 SSE
+ *    （GET /api/runs/:id/events?since=N），不要用长连接等跑完。
+ * 3. 错误：非 2xx + detail 字段说明原因；前端会把 detail 直接当用户可见文案。
+ * 4. 时间戳统一毫秒；字段小驼峰（后端可用 Pydantic alias 对齐）。
+ *
+ * 完整字段表：docs/BACKEND-INTEGRATION.md 的 §3 / §4；类型定义：shared/types.ts。
+ * 自检工具：node scripts/contract-check.mjs --api http://你的后端
+ *
+ * 分组与页面：
+ *   健康   GET /api/health                          全局（状态灯 / 启动门禁）
+ *   设置   GET|PUT /api/settings                    设置页
+ *   项目   GET|POST /api/projects                   工作台 / 项目库
+ *          GET|PATCH|DELETE /api/projects/:id
+ *   运行   POST /api/projects/:id/run               项目页流水线
+ *          GET /api/runs?projectId= /api/runs/:id
+ *          POST /api/runs/:id/cancel
+ *   对话   POST /api/projects/:id/chat              对话页
+ *   文档   GET /api/projects/:id/documents          方案页
+ *   差异   GET /api/projects/:id/diff               差异页
+ *   代码   GET /api/projects/:id/tree 与 /file      代码页
+ *          POST /api/projects/:id/files/write
+ *   提案   POST|DELETE /api/projects/:id/apply      对话页「应用到代码」
+ *   W3     /api/auth/w3/* 与 GET /api/models        设置页凭证卡
+ *   Git    /api/git/repos 与 /api/projects/:id/git/*  仓库页
+ *   编辑器 AI  POST /api/projects/:id/agent/edit|explain  代码页
+ */
 import type {
   AgentEvent,
   AppSettings,
@@ -36,6 +70,14 @@ export class ApiError extends Error {
 
 const DEFAULT_BASE = 'http://127.0.0.1:8791'
 
+/**
+ * 后端地址的解析顺序（越靠前优先级越高）：
+ *   1. window.tsd.backendUrl      Electron 主进程注入（内置后端 / 打包版）
+ *   2. window.__TSD_BOOT__.apiBase 打包时注入
+ *   3. VITE_API_BASE              前端开发时直连内网后端（npm run dev:renderer）
+ *   4. http://127.0.0.1:8791      默认值
+ * 运行时也可以在「设置 → 后端服务」切到外部后端，setApiBase 会覆盖这里的值。
+ */
 function resolveBase(): string {
   const fromBridge = (window as unknown as { tsd?: { backendUrl?: string } }).tsd?.backendUrl
   const fromBoot = window.__TSD_BOOT__?.apiBase
@@ -120,6 +162,15 @@ function parseSseChunk(buffer: string): { events: string[]; rest: string } {
   return { events, rest }
 }
 
+/**
+ * 消费运行事件流（fetch + ReadableStream，而不是 EventSource：
+ * EventSource 不能带 header，也不方便在严格 CSP 下使用）。
+ *
+ * 后端必须满足三件事：
+ *   - seq 在**同一 run 内**单调递增（前端会丢弃 seq <= lastSeq 的事件）；
+ *   - 支持 ?since=N：把 seq > N 的历史事件补发一遍（断线重连、刷新页面都靠它）；
+ *   - 必须发 run.done 或 run.error 作为终止事件，否则前端会一直等到超时重试。
+ */
 export function streamRunEvents(
   runId: string,
   opts: {
