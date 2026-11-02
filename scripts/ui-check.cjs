@@ -168,6 +168,66 @@ async function main() {
     if (report.createdProjectId) {
       await api('/api/projects/' + report.createdProjectId, { method: 'DELETE' }).catch(() => undefined)
     }
+    // —— 按钮 loading 态：不能挤动图标、不能改变按钮尺寸
+    await route('/settings', '设置')
+    const loadProbe = await evalJs(
+      '(() => {' +
+        'const orig = window.fetch.bind(window);' +
+        'window.__tsdOrigFetch = orig;' +
+        'window.fetch = (input, init) => {' +
+          'const url = typeof input === "string" ? input : (input && input.url) || "";' +
+          'const method = (init && init.method) || "GET";' +
+          'if (url.indexOf("/api/settings") >= 0 && method === "PUT") {' +
+            'return new Promise((resolve) => setTimeout(() => resolve(orig(input, init)), 1600));' +
+          '}' +
+          'return orig(input, init);' +
+        '};' +
+        'const buttons = [...document.querySelectorAll("button")];' +
+        'const target = buttons.find((b) => (b.textContent || "").trim() === "保存") || buttons.find((b) => (b.textContent || "").includes("保存"));' +
+        'if (!target) return { ok: false, reason: "找不到保存按钮" };' +
+        'const r = target.getBoundingClientRect();' +
+        'target.click();' +
+        'return { ok: true, rect: { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.x), y: Math.round(r.y) } };' +
+      '})()',
+    )
+    await sleep(450)
+    const loadingState = await evalJs(
+      '(() => {' +
+        'const buttons = [...document.querySelectorAll("button")];' +
+        'const target = buttons.find((b) => b.getAttribute("aria-busy") === "true") || buttons.find((b) => (b.textContent || "").includes("保存"));' +
+        'if (!target) return { ok: false, reason: "没有按钮进入 loading 态" };' +
+        'const r = target.getBoundingClientRect();' +
+        'const spinner = target.querySelector("svg.animate-spin");' +
+        'const content = target.querySelector("span");' +
+        'const contentStyle = content ? window.getComputedStyle(content) : null;' +
+        'const spinnerRect = spinner ? spinner.getBoundingClientRect() : null;' +
+        'return { ok: true,' +
+          ' busy: target.getAttribute("aria-busy") === "true",' +
+          ' rect: { w: Math.round(r.width), h: Math.round(r.height), x: Math.round(r.x), y: Math.round(r.y) },' +
+          ' hasSpinner: Boolean(spinner),' +
+          ' spinnerCentered: spinnerRect ? (Math.abs((spinnerRect.x + spinnerRect.width / 2) - (r.x + r.width / 2)) < 2 && Math.abs((spinnerRect.y + spinnerRect.height / 2) - (r.y + r.height / 2)) < 2) : false,' +
+          ' contentHidden: contentStyle ? contentStyle.visibility === "hidden" : false,' +
+          ' iconCount: target.querySelectorAll("svg").length' +
+        '};' +
+      '})()',
+    )
+    await evalJs('(() => { if (window.__tsdOrigFetch) window.fetch = window.__tsdOrigFetch; return true })()')
+    const sizeStable = loadProbe.ok && loadingState.ok &&
+      Math.abs(loadingState.rect.w - loadProbe.rect.w) <= 1 &&
+      Math.abs(loadingState.rect.h - loadProbe.rect.h) <= 1 &&
+      Math.abs(loadingState.rect.x - loadProbe.rect.x) <= 1 &&
+      Math.abs(loadingState.rect.y - loadProbe.rect.y) <= 1
+    const loadingOk = sizeStable && loadingState.hasSpinner && loadingState.contentHidden && loadingState.spinnerCentered
+    report.steps.push({
+      hash: '/settings (button loading)',
+      ok: Boolean(loadingOk),
+      errors: [],
+      before: loadProbe, after: loadingState, sizeStable,
+    })
+    console.log((loadingOk ? 'PASS ' : 'FAIL ') + 'button-loading sizeStable=' + sizeStable +
+      ' spinner=' + loadingState.hasSpinner + ' centered=' + loadingState.spinnerCentered +
+      ' contentHidden=' + loadingState.contentHidden)
+
     const chatOk =
       Boolean(sent) && chatDone && chatAudit.hasReasoning && chatAudit.hasTools &&
       chatAudit.hasProposal && chatAudit.mainHeight > 300

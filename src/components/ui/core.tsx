@@ -43,24 +43,47 @@ export interface ButtonProps
   loading?: boolean
 }
 
+/** loading 时用它替换内容；不同尺寸给不同直径，避免视觉上忽然变大/变小 */
+const SPINNER_CLASS: Record<string, string> = {
+  xs: 'h-3 w-3',
+  sm: 'h-3.5 w-3.5',
+  md: 'h-3.5 w-3.5',
+  lg: 'h-4 w-4',
+  icon: 'h-3.5 w-3.5',
+  'icon-sm': 'h-3 w-3',
+}
+
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, loading, children, disabled, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, loading, children, disabled, style, ...props }, ref) => {
     const Comp = asChild ? Slot : 'button'
+    const gap = size === 'xs' || size === 'icon-sm' ? 'gap-1.5' : 'gap-2'
+    // asChild 时 Radix Slot 只接受单个子元素，不能包 span / 叠 spinner，保持原样透传
+    if (asChild) {
+      return (
+        <Comp ref={ref} {...props} className={cn(buttonVariants({ variant, size }), className)} disabled={disabled} style={style}>
+          {children}
+        </Comp>
+      )
+    }
     return (
       <Comp
         ref={ref}
+        {...props}
         className={cn(buttonVariants({ variant, size }), className)}
         disabled={disabled || loading}
-        {...props}
+        aria-busy={loading || undefined}
+        // 加载中保持原尺寸：内容只是「变透明」但仍然占位，转圈图标绝对定位居中覆盖，
+        // 于是按钮宽高、周围布局都不会跳，原来的图标也不会被挤上去。
+        style={{ ...style, ...(loading ? { opacity: 0.9 } : null) }}
       >
+        <span className={cn('inline-flex min-w-0 items-center justify-center', gap, loading && 'invisible')}>
+          {children}
+        </span>
         {loading ? (
-          <>
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            <span className="opacity-80">{children}</span>
-          </>
-        ) : (
-          children
-        )}
+          <span className="pointer-events-none absolute inset-0 grid place-items-center">
+            <Loader2 className={cn('animate-spin', SPINNER_CLASS[size ?? 'md'] ?? 'h-3.5 w-3.5')} />
+          </span>
+        ) : null}
       </Comp>
     )
   },
