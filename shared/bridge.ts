@@ -22,6 +22,13 @@ export interface AppConfig {
   devtools: boolean
 }
 
+export interface FontListResult {
+  families: string[]
+  /** 扫描来源：windows-registry / fontconfig / fonts-directory */
+  source: string
+  truncated: boolean
+}
+
 export interface TsdBridge {
   platform: string
   version: string
@@ -32,6 +39,8 @@ export interface TsdBridge {
   onBackendStatus: (cb: (status: BackendStatus) => void) => () => void
   getConfig: () => Promise<AppConfig>
   setConfig: (patch: Partial<AppConfig>) => Promise<AppConfig>
+  listFonts: (force?: boolean) => Promise<FontListResult>
+  setZoom: (factor: number) => Promise<number>
   pickDirectory: (title?: string) => Promise<string | null>
   openPath: (path: string) => Promise<void>
   revealPath: (path: string) => Promise<void>

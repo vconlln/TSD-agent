@@ -103,8 +103,8 @@ export function AgentCard({ settings, onSaved }: { settings: AppSettings; onSave
           <div className="flex items-center gap-2">
             <Terminal className="h-3.5 w-3.5 text-muted-foreground" />
             <div>
-              <p className="text-[12.5px] font-medium">允许运行验证命令</p>
-              <p className="text-[12px] text-muted-foreground">
+              <p className="text-sm font-medium">允许运行验证命令</p>
+              <p className="text-xs text-muted-foreground">
                 白名单内的构建/测试命令（npm、pytest、go、cargo、tsc、ruff 等），带超时与输出上限
               </p>
             </div>
@@ -116,8 +116,8 @@ export function AgentCard({ settings, onSaved }: { settings: AppSettings; onSave
           <div className="flex items-center gap-2">
             <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
             <div>
-              <p className="text-[12.5px] font-medium">改完自动跑测试</p>
-              <p className="text-[12px] text-muted-foreground">
+              <p className="text-sm font-medium">改完自动跑测试</p>
+              <p className="text-xs text-muted-foreground">
                 探测 package.json scripts.test / pytest / go test / cargo test，失败会把错误回喂给模型修复
               </p>
             </div>
@@ -129,7 +129,7 @@ export function AgentCard({ settings, onSaved }: { settings: AppSettings; onSave
           <Button size="sm" variant="primary" className="gap-1.5" loading={saving} onClick={() => void save()}>
             <Save className="h-3.5 w-3.5" /> 保存 Agent 配置
           </Button>
-          <span className="text-[12px] text-muted-foreground/60">
+          <span className="text-xs text-muted-foreground/60">
             Agent 每次调用工具都会写入「Agent 轨迹」标签页，可逐步回放
           </span>
         </div>

@@ -29,21 +29,21 @@ export function FileDiffCard({
       >
         <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', !open && '-rotate-90')} />
         <span
-          className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border text-[11.5px] font-bold', meta.cls)}
+          className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-[5px] border text-2xs font-bold', meta.cls)}
           title={file.status}
         >
           {meta.label}
         </span>
         <span className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate font-mono text-[12.5px] text-foreground/90">{file.path}</span>
+          <span className="truncate font-mono text-sm text-foreground/90">{file.path}</span>
           {file.oldPath ? (
-            <span className="truncate font-mono text-[12px] text-muted-foreground/60">← {file.oldPath}</span>
+            <span className="truncate font-mono text-xs text-muted-foreground/60">← {file.oldPath}</span>
           ) : null}
         </span>
         <Badge variant="muted" className="hidden shrink-0 sm:inline-flex" style={{ color: lang.color }}>
           {lang.label}
         </Badge>
-        <span className="ml-auto flex shrink-0 items-center gap-2 tabular text-[12px]">
+        <span className="ml-auto flex shrink-0 items-center gap-2 tabular text-xs">
           {file.binary ? (
             <span className="text-muted-foreground">二进制</span>
           ) : (
@@ -105,14 +105,14 @@ export function FileDiffCard({
 
       {open ? (
         file.binary ? (
-          <div className="border-t border-border/60 px-4 py-6 text-center text-[12.5px] text-muted-foreground">
+          <div className="border-t border-border/60 px-4 py-6 text-center text-sm text-muted-foreground">
             二进制文件已修改，无法以文本形式展示差异
           </div>
         ) : (
           <div className="max-h-[560px] overflow-auto border-t border-border/60 scroll-area-thin">
             <PatchView patch={file.patch} language={lang.shiki} />
             {file.truncated ? (
-              <div className="border-t border-border/60 bg-muted/30 px-3 py-1.5 text-center text-[12px] text-muted-foreground">
+              <div className="border-t border-border/60 bg-muted/30 px-3 py-1.5 text-center text-xs text-muted-foreground">
                 文件过大，差异已截断
               </div>
             ) : null}
@@ -145,7 +145,7 @@ export function FileDiffList({
 
   if (!files.length) {
     return (
-      <div className="rounded-xl border border-dashed border-border/80 px-4 py-10 text-center text-[12.5px] text-muted-foreground">
+      <div className="rounded-xl border border-dashed border-border/80 px-4 py-10 text-center text-sm text-muted-foreground">
         {emptyLabel}
       </div>
     )
@@ -158,7 +158,7 @@ export function FileDiffList({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="筛选文件路径…"
-          className="h-7 w-48 rounded-md border border-input bg-background/40 px-2 font-mono text-[12px] outline-none focus:border-primary/50"
+          className="h-7 w-48 rounded-md border border-input bg-background/40 px-2 font-mono text-xs outline-none focus:border-primary/50"
         />
         <div className="flex items-center gap-1">
           {([
@@ -177,7 +177,7 @@ export function FileDiffList({
             </Button>
           ))}
         </div>
-        <span className="ml-auto text-[12px] text-muted-foreground/70">{filtered.length} 个文件</span>
+        <span className="ml-auto text-xs text-muted-foreground/70">{filtered.length} 个文件</span>
       </div>
       {filtered.map((file, idx) => (
         <FileDiffCard

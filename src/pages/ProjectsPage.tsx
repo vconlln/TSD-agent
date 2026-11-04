@@ -79,7 +79,7 @@ export function ProjectsPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="搜索项目名称、来源…"
-              className="h-8 w-64 pl-8 text-[12.5px]"
+              className="h-8 w-64 pl-8 text-sm"
             />
           </div>
           <Segmented<Filter>
@@ -93,7 +93,7 @@ export function ProjectsPage() {
               { value: 'failed', label: '失败', count: projects.filter((p) => p.status === 'failed').length },
             ]}
           />
-          <span className="ml-auto flex items-center gap-1 text-[12px] text-muted-foreground/60">
+          <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground/60">
             <SlidersHorizontal className="h-3 w-3" /> {filtered.length} 个结果
           </span>
         </div>

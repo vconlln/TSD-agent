@@ -50,12 +50,12 @@ function ProposalCard({
     <div className="mt-3 overflow-hidden rounded-xl border border-primary/25 bg-primary/[0.04]">
       <div className="flex flex-wrap items-center gap-2 border-b border-primary/15 px-3 py-2">
         <Sparkles className="h-3.5 w-3.5 text-primary" />
-        <span className="text-[12.5px] font-medium text-foreground">代码修改建议</span>
+        <span className="text-sm font-medium text-foreground">代码修改建议</span>
         <Badge variant="muted" className="font-mono">
           {proposal.edits.length} 个文件
         </Badge>
-        <span className="tabular text-[12px] text-[hsl(var(--diff-add))]">+{additions}</span>
-        <span className="tabular text-[12px] text-[hsl(var(--diff-del))]">-{deletions}</span>
+        <span className="tabular text-xs text-[hsl(var(--diff-add))]">+{additions}</span>
+        <span className="tabular text-xs text-[hsl(var(--diff-del))]">-{deletions}</span>
         <div className="ml-auto flex items-center gap-1.5">
           {proposal.applied ? (
             <Badge variant="success" className="gap-1">
@@ -77,9 +77,9 @@ function ProposalCard({
       </div>
       {proposal.summary || proposal.rationale ? (
         <div className="px-3 py-2">
-          <p className="text-[12.5px] leading-relaxed text-foreground/85">{proposal.summary}</p>
+          <p className="text-sm leading-relaxed text-foreground/85">{proposal.summary}</p>
           {proposal.rationale ? (
-            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{proposal.rationale}</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{proposal.rationale}</p>
           ) : null}
         </div>
       ) : null}
@@ -95,8 +95,8 @@ function ProposalCard({
               >
                 <ChevronDown className={cn('h-3 w-3 shrink-0 text-muted-foreground transition-transform', !open && '-rotate-90')} />
                 <FileCode2 className="h-3 w-3 shrink-0 text-muted-foreground/70" />
-                <span className="truncate font-mono text-[12px] text-foreground/85">{edit.path}</span>
-                <span className="ml-auto flex shrink-0 items-center gap-1.5 tabular text-[11.5px]">
+                <span className="truncate font-mono text-xs text-foreground/85">{edit.path}</span>
+                <span className="ml-auto flex shrink-0 items-center gap-1.5 tabular text-2xs">
                   <span className="text-[hsl(var(--diff-add))]">+{edit.additions}</span>
                   <span className="text-[hsl(var(--diff-del))]">-{edit.deletions}</span>
                   <span className="text-muted-foreground/50">{lang.label}</span>
@@ -149,7 +149,7 @@ const AssistantMessage = memo(
           <LogoMark size={15} />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-center gap-2 text-[12px] text-muted-foreground/60">
+          <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground/60">
             <span className="font-medium text-foreground/70">TSD Agent</span>
             <span className="tabular">{formatClock(message.ts)}</span>
           </div>
@@ -166,13 +166,13 @@ const AssistantMessage = memo(
           {message.tools?.length ? <ToolStrip calls={message.tools} /> : null}
 
           {message.error ? (
-            <div className="rounded-xl border border-destructive/30 bg-destructive/[0.07] px-3 py-2 text-[12.5px] text-destructive">
+            <div className="rounded-xl border border-destructive/30 bg-destructive/[0.07] px-3 py-2 text-sm text-destructive">
               {message.error}
             </div>
           ) : null}
 
           {waiting ? (
-            <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span className="flex gap-1">
                 {[0, 1, 2].map((index) => (
                   <span
@@ -220,11 +220,11 @@ function UserMessage({ message }: { message: ChatMessage }) {
   return (
     <div className="flex justify-end gap-3">
       <div className="flex max-w-[85%] flex-col items-end">
-        <div className="mb-1 flex items-center gap-2 text-[12px] text-muted-foreground/60">
+        <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground/60">
           <span className="tabular">{formatClock(message.ts)}</span>
           <span className="font-medium text-foreground/70">你</span>
         </div>
-        <div className="whitespace-pre-wrap break-words rounded-2xl rounded-tr-md bg-secondary/80 px-3.5 py-2.5 text-[13.5px] leading-relaxed text-foreground">
+        <div className="whitespace-pre-wrap break-words rounded-2xl rounded-tr-md bg-secondary/80 px-3.5 py-2.5 text-base leading-relaxed text-foreground">
           {message.content}
         </div>
       </div>
@@ -273,7 +273,7 @@ function Composer({
             }}
             rows={1}
             placeholder="继续改造这个项目：描述要改什么，或直接问它在干什么"
-            className="max-h-[220px] min-h-[26px] w-full resize-none bg-transparent text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none scroll-area-thin"
+            className="max-h-[220px] min-h-[26px] w-full resize-none bg-transparent text-base leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none scroll-area-thin"
           />
           {streaming ? (
             <Tooltip content="停止生成">
@@ -301,7 +301,7 @@ function Composer({
             </button>
           )}
         </div>
-        <p className="mt-1.5 text-center text-[12px] text-muted-foreground/50">
+        <p className="mt-1.5 text-center text-xs text-muted-foreground/50">
           <span className="mr-2">Enter 发送</span>
           <span className="mr-2">Shift + Enter 换行</span>
           <span>改动会以补丁形式给你审阅</span>
@@ -356,7 +356,7 @@ export function ChatPanel({ projectId, className }: { projectId: string; classNa
   return (
     <div className={cn('flex h-full min-h-0 flex-col', className)}>
       <div className="flex items-center justify-between gap-2 border-b border-border/60 px-4 py-2">
-        <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className="grid h-5 w-5 place-items-center rounded-md bg-primary/10 text-primary">
             <Sparkles className="h-3 w-3" />
           </span>
@@ -385,8 +385,8 @@ export function ChatPanel({ projectId, className }: { projectId: string; classNa
                 <LogoMark size={22} />
               </div>
               <div>
-                <h3 className="text-[15px] font-semibold tracking-tight">有什么可以帮你的？</h3>
-                <p className="mt-1 text-[12.5px] text-muted-foreground">
+                <h3 className="text-md font-semibold tracking-tight">有什么可以帮你的？</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
                   我能看到这个项目的方案、代码与差异；要改代码，我会先读再改，并把补丁交给你确认。
                 </p>
               </div>
@@ -395,7 +395,7 @@ export function ChatPanel({ projectId, className }: { projectId: string; classNa
                   <button
                     key={text}
                     onClick={() => setInput(text)}
-                    className="rounded-xl border border-border/70 bg-card/50 px-3 py-2 text-left text-[12.5px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                    className="rounded-xl border border-border/70 bg-card/50 px-3 py-2 text-left text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                   >
                     {text}
                   </button>
@@ -416,7 +416,7 @@ export function ChatPanel({ projectId, className }: { projectId: string; classNa
         {!atBottom && rows.length > 0 ? (
           <button
             onClick={() => scrollToBottom(true)}
-            className="sticky bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/90 px-3 py-1.5 text-[12px] text-muted-foreground shadow-float backdrop-blur hover:text-foreground"
+            className="sticky bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/90 px-3 py-1.5 text-xs text-muted-foreground shadow-float backdrop-blur hover:text-foreground"
           >
             <ArrowDown className="h-3 w-3" /> 回到底部
           </button>

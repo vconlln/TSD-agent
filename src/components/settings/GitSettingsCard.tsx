@@ -99,7 +99,7 @@ export function GitSettingsCard({ settings, onSaved }: { settings: AppSettings; 
             />
           </Field>
           <Field label="默认分支">
-            <Input value={git.defaultBranch} onChange={(e) => setGit({ ...git, defaultBranch: e.target.value })} className="font-mono text-[12.5px]" />
+            <Input value={git.defaultBranch} onChange={(e) => setGit({ ...git, defaultBranch: e.target.value })} className="font-mono text-sm" />
           </Field>
         </div>
 
@@ -109,7 +109,7 @@ export function GitSettingsCard({ settings, onSaved }: { settings: AppSettings; 
               value={git.reposRoot}
               onChange={(e) => setGit({ ...git, reposRoot: e.target.value })}
               placeholder="/home/me/repos"
-              className="font-mono text-[12.5px]"
+              className="font-mono text-sm"
             />
           </Field>
         ) : (
@@ -120,7 +120,7 @@ export function GitSettingsCard({ settings, onSaved }: { settings: AppSettings; 
                   value={git.baseUrl}
                   onChange={(e) => setGit({ ...git, baseUrl: e.target.value })}
                   placeholder="https://git.example.internal"
-                  className="font-mono text-[12.5px]"
+                  className="font-mono text-sm"
                 />
               </Field>
               <Field label="访问令牌" hint={settings.git?.tokenSet ? '已保存（留空不修改）' : '私有仓库必填'}>
@@ -129,13 +129,13 @@ export function GitSettingsCard({ settings, onSaved }: { settings: AppSettings; 
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                   placeholder={settings.git?.tokenSet ? '••••••••' : 'glpat-… / ghp_…'}
-                  className="font-mono text-[12.5px]"
+                  className="font-mono text-sm"
                 />
               </Field>
             </div>
             {git.provider === 'generic' ? (
               <Field label="检索路径" hint="相对服务地址">
-                <Input value={git.reposPath} onChange={(e) => setGit({ ...git, reposPath: e.target.value })} className="font-mono text-[12.5px]" />
+                <Input value={git.reposPath} onChange={(e) => setGit({ ...git, reposPath: e.target.value })} className="font-mono text-sm" />
               </Field>
             ) : null}
           </>
@@ -146,7 +146,7 @@ export function GitSettingsCard({ settings, onSaved }: { settings: AppSettings; 
             <Input value={git.authorName} onChange={(e) => setGit({ ...git, authorName: e.target.value })} />
           </Field>
           <Field label="提交作者邮箱">
-            <Input value={git.authorEmail} onChange={(e) => setGit({ ...git, authorEmail: e.target.value })} className="font-mono text-[12.5px]" />
+            <Input value={git.authorEmail} onChange={(e) => setGit({ ...git, authorEmail: e.target.value })} className="font-mono text-sm" />
           </Field>
         </div>
 
@@ -157,7 +157,7 @@ export function GitSettingsCard({ settings, onSaved }: { settings: AppSettings; 
                 value={prefix}
                 onChange={(e) => setPrefix(e.target.value)}
                 placeholder="前缀，例如 mic"
-                className="font-mono text-[12.5px]"
+                className="font-mono text-sm"
               />
               <Button size="sm" variant="secondary" className="shrink-0 gap-1" loading={testing} onClick={() => void test()}>
                 <Search className="h-3.5 w-3.5" /> 试检索
@@ -165,13 +165,13 @@ export function GitSettingsCard({ settings, onSaved }: { settings: AppSettings; 
             </div>
           </Field>
           {testResult ? (
-            <span className="flex items-center gap-1 text-[12px] text-muted-foreground">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <GitBranch className="h-3 w-3" /> {testResult.provider} · 命中 {testResult.count} 个
             </span>
           ) : null}
         </div>
         {testResult?.note ? (
-          <p className="rounded-lg border border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning)/0.06)] px-2.5 py-1.5 text-[12px] text-[hsl(var(--warning))]">
+          <p className="rounded-lg border border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning)/0.06)] px-2.5 py-1.5 text-xs text-[hsl(var(--warning))]">
             {testResult.note}
           </p>
         ) : null}
@@ -180,7 +180,7 @@ export function GitSettingsCard({ settings, onSaved }: { settings: AppSettings; 
           <Button size="sm" variant="primary" className="gap-1.5" loading={saving} onClick={() => void save()}>
             <Save className="h-3.5 w-3.5" /> 保存 Git 配置
           </Button>
-          <span className="flex items-center gap-1 text-[12px] text-muted-foreground/60">
+          <span className="flex items-center gap-1 text-xs text-muted-foreground/60">
             <ServerCog className="h-3 w-3" /> 需要本机安装 git 命令
           </span>
         </div>

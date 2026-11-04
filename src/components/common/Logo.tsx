@@ -39,8 +39,8 @@ export function LogoLockup({ compact = false, className }: { compact?: boolean; 
       <LogoMark size={compact ? 24 : 28} />
       {!compact && (
         <div className="leading-none">
-          <span className="font-display text-[14px] font-medium tracking-[-0.02em] text-foreground">TSD Agent</span>
-          <div className="mt-1 text-[11.5px] text-muted-foreground/60">项目升级工作台</div>
+          <span className="font-display text-base font-medium tracking-[-0.02em] text-foreground">TSD Agent</span>
+          <div className="mt-1 text-2xs text-muted-foreground/60">项目升级工作台</div>
         </div>
       )}
     </div>

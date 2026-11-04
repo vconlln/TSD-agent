@@ -3,6 +3,7 @@ import path from 'node:path'
 import { existsSync, writeFileSync } from 'node:fs'
 import type { AppConfig } from '../shared/bridge'
 import { BackendSupervisor } from './backend'
+import { listSystemFonts } from './fonts'
 import { loadConfig, saveConfig, ensureWorkspace } from './config'
 
 const isDev = !app.isPackaged || process.env.NODE_ENV === 'development'
@@ -92,6 +93,18 @@ function registerIpc() {
     return status
   })
 
+  ipcMain.handle('fonts:list', async (_event, force?: boolean) => listSystemFonts(Boolean(force)))
+  // 页面缩放走 zoomFactor：Chromium 会按新的缩放重排并按倍率重新栅格化，高分屏不会糊
+  ipcMain.handle('window:set-zoom', (event, factor: number) => {
+    const target = Math.min(1.6, Math.max(0.7, Number(factor) || 1))
+    const contents = event.sender
+    try {
+      contents.setZoomFactor(target)
+      return target
+    } catch {
+      return 1
+    }
+  })
   ipcMain.handle('config:get', () => loadConfig())
   ipcMain.handle('config:set', (_event, patch: Partial<AppConfig>) => {
     const next = saveConfig(patch)

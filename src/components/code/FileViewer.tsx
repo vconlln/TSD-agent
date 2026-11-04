@@ -51,11 +51,11 @@ export function FileViewer({
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
       <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-3 py-1.5">
-        <span className="truncate font-mono text-[12.5px] text-foreground/85">{path}</span>
+        <span className="truncate font-mono text-sm text-foreground/85">{path}</span>
         {meta ? <Badge variant="outline" className={meta.cls}>{meta.label}</Badge> : null}
         <Badge variant="muted" style={{ color: lang.color }}>{lang.label}</Badge>
         {state && state !== 'loading' && state !== 'error' ? (
-          <span className="text-[12px] tabular text-muted-foreground/60">{formatBytes(state.size)}</span>
+          <span className="text-xs tabular text-muted-foreground/60">{formatBytes(state.size)}</span>
         ) : null}
         <div className="ml-auto flex items-center gap-0.5">
           <Tooltip content={wrap ? '关闭自动换行' : '自动换行'}>
@@ -109,7 +109,7 @@ export function FileViewer({
               className="border-0 bg-transparent"
             />
             {state.truncated ? (
-              <p className="px-2 py-2 text-[12px] text-muted-foreground">文件较大，仅显示前 1.5 MB 内容。</p>
+              <p className="px-2 py-2 text-xs text-muted-foreground">文件较大，仅显示前 1.5 MB 内容。</p>
             ) : null}
           </div>
         )}

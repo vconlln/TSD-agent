@@ -23,10 +23,10 @@ import { SectionTitle } from '@/components/common/PageHeader'
 function Stat({ label, value, tone }: { label: string; value: React.ReactNode; tone?: 'add' | 'del' | 'muted' }) {
   return (
     <div className="rounded-lg border border-border/60 bg-background/30 px-2.5 py-1.5">
-      <div className="text-[11.5px] text-muted-foreground/60">{label}</div>
+      <div className="text-2xs text-muted-foreground/60">{label}</div>
       <div
         className={cn(
-          'stat-num mt-0.5 text-[15px] font-semibold leading-none',
+          'stat-num mt-0.5 text-md font-semibold leading-none',
           tone === 'add' ? 'text-[hsl(var(--diff-add))]' : tone === 'del' ? 'text-[hsl(var(--diff-del))]' : 'text-foreground',
         )}
       >
@@ -121,7 +121,7 @@ export function GitTab({ project }: { project: Project }) {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://git.example.com/group/micabc.git"
-                className="font-mono text-[12.5px]"
+                className="font-mono text-sm"
               />
             </Field>
             <Field label="分支" hint="留空使用默认分支">
@@ -129,26 +129,26 @@ export function GitTab({ project }: { project: Project }) {
                 value={cloneBranch}
                 onChange={(e) => setCloneBranch(e.target.value)}
                 placeholder="main"
-                className="font-mono text-[12.5px]"
+                className="font-mono text-sm"
               />
             </Field>
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="primary" size="sm" className="gap-1.5" loading={cloning} onClick={() => void doClone()}>
                 <GitFork className="h-3.5 w-3.5" /> 克隆到项目
               </Button>
-              <span className="text-[12px] text-muted-foreground/70">
+              <span className="text-xs text-muted-foreground/70">
                 {status.gitAvailable === false
                   ? '未检测到 git 命令，请先安装 Git 并加入 PATH'
                   : '克隆后可直接执行升级，升级结果不会污染仓库历史'}
               </span>
             </div>
             {runtime?.error ? (
-              <p className="rounded-lg border border-destructive/30 bg-destructive/[0.06] px-2.5 py-2 text-[12.5px] text-destructive">
+              <p className="rounded-lg border border-destructive/30 bg-destructive/[0.06] px-2.5 py-2 text-sm text-destructive">
                 {runtime.error}
               </p>
             ) : null}
             {runtime?.lastAction ? (
-              <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                 <CheckCircle2 className="h-3 w-3 text-[hsl(var(--success))]" />
                 {runtime.lastAction.message}
               </p>
@@ -167,43 +167,43 @@ export function GitTab({ project }: { project: Project }) {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <GitBranch className="h-3.5 w-3.5 text-primary" />
-                <span className="font-mono text-[13px] font-medium">{status?.branch || '—'}</span>
+                <span className="font-mono text-sm font-medium">{status?.branch || '—'}</span>
                 {status?.upstream ? (
-                  <Badge variant="muted" className="font-mono text-[11.5px]">
+                  <Badge variant="muted" className="font-mono text-2xs">
                     {status.upstream}
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-[11.5px]">
+                  <Badge variant="outline" className="text-2xs">
                     未关联远程
                   </Badge>
                 )}
                 {aheadBehind.ahead > 0 ? (
-                  <Badge variant="success" className="gap-1 text-[11.5px]">
+                  <Badge variant="success" className="gap-1 text-2xs">
                     <ArrowUpFromLine className="h-2.5 w-2.5" /> 领先 {aheadBehind.ahead}
                   </Badge>
                 ) : null}
                 {aheadBehind.behind > 0 ? (
-                  <Badge variant="warning" className="gap-1 text-[11.5px]">
+                  <Badge variant="warning" className="gap-1 text-2xs">
                     <ArrowDownToLine className="h-2.5 w-2.5" /> 落后 {aheadBehind.behind}
                   </Badge>
                 ) : null}
                 {dirty.length ? (
-                  <Badge variant="warning" className="gap-1 text-[11.5px]">
+                  <Badge variant="warning" className="gap-1 text-2xs">
                     <TriangleAlert className="h-2.5 w-2.5" /> {dirty.length} 个未提交
                   </Badge>
                 ) : (
-                  <Badge variant="success" className="text-[11.5px]">工作区干净</Badge>
+                  <Badge variant="success" className="text-2xs">工作区干净</Badge>
                 )}
               </div>
               <button
-                className="mt-1.5 flex max-w-[560px] items-center gap-1 truncate font-mono text-[12px] text-muted-foreground/70 hover:text-primary"
+                className="mt-1.5 flex max-w-[560px] items-center gap-1 truncate font-mono text-xs text-muted-foreground/70 hover:text-primary"
                 onClick={() => status?.remoteUrl && window.tsd?.openExternal(status.remoteUrl)}
               >
                 <GitFork className="h-3 w-3 shrink-0" />
                 <span className="truncate">{status?.remoteUrl || status?.sourceUrl || '未配置远程地址'}</span>
               </button>
               {status?.lastCommit ? (
-                <p className="mt-1 flex items-center gap-1.5 text-[12px] text-muted-foreground/70">
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground/70">
                   <GitCommitHorizontal className="h-3 w-3" />
                   <span className="font-mono">{status.lastCommit.sha}</span>
                   <span className="truncate">{status.lastCommit.message}</span>
@@ -239,14 +239,14 @@ export function GitTab({ project }: { project: Project }) {
 
           {dirty.length ? (
             <div className="mt-2 rounded-lg border border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning)/0.06)] px-2.5 py-1.5">
-              <p className="text-[12px] font-medium text-[hsl(var(--warning))]">工作区有未提交改动</p>
+              <p className="text-xs font-medium text-[hsl(var(--warning))]">工作区有未提交改动</p>
               <div className="mt-1 flex flex-wrap gap-1">
                 {dirty.slice(0, 10).map((entry) => (
-                  <span key={entry.path} className="rounded bg-background/50 px-1.5 py-0.5 font-mono text-[11.5px] text-muted-foreground">
+                  <span key={entry.path} className="rounded bg-background/50 px-1.5 py-0.5 font-mono text-2xs text-muted-foreground">
                     {entry.path}
                   </span>
                 ))}
-                {dirty.length > 10 ? <span className="text-[11.5px] text-muted-foreground">…</span> : null}
+                {dirty.length > 10 ? <span className="text-2xs text-muted-foreground">…</span> : null}
               </div>
             </div>
           ) : null}
@@ -257,19 +257,19 @@ export function GitTab({ project }: { project: Project }) {
             <SectionTitle
               hint={compareResult?.base ? `对比 ${compareResult.base}` : '本地 vs 远程'}
               action={
-                compareResult?.fetched ? <Badge variant="muted" className="text-[11.5px]">已 fetch</Badge> : null
+                compareResult?.fetched ? <Badge variant="muted" className="text-2xs">已 fetch</Badge> : null
               }
             >
               本地与远程对比
             </SectionTitle>
 
             {compareResult?.ok === false ? (
-              <p className="mt-2 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-2 text-[12px] text-muted-foreground">
+              <p className="mt-2 rounded-lg border border-border/60 bg-muted/20 px-2.5 py-2 text-xs text-muted-foreground">
                 {compareResult.note || '暂无可对比的远程分支'}
               </p>
             ) : (
               <div className="mt-2 space-y-2">
-                <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <ArrowUpFromLine className="h-3 w-3 text-[hsl(var(--diff-add))]" /> 待推送 {aheadBehind.ahead}
                   </span>
@@ -281,14 +281,14 @@ export function GitTab({ project }: { project: Project }) {
 
                 <div className="max-h-[190px] space-y-1 overflow-y-auto scroll-area-thin">
                   {(compareResult?.commits ?? []).length === 0 ? (
-                    <p className="px-1 py-2 text-[12px] text-muted-foreground/60">
+                    <p className="px-1 py-2 text-xs text-muted-foreground/60">
                       本地与 {compareResult?.base || '远程'} 一致
                     </p>
                   ) : (
                     (compareResult?.commits ?? []).map((commit) => (
                       <div key={commit.sha} className="flex items-start gap-2 rounded-md px-1.5 py-1 hover:bg-accent/50">
-                        <span className="shrink-0 font-mono text-[11.5px] text-primary/80">{commit.sha}</span>
-                        <span className="min-w-0 flex-1 truncate text-[12px] text-foreground/85">{commit.subject}</span>
+                        <span className="shrink-0 font-mono text-2xs text-primary/80">{commit.sha}</span>
+                        <span className="min-w-0 flex-1 truncate text-xs text-foreground/85">{commit.subject}</span>
                       </div>
                     ))
                   )}
@@ -296,11 +296,11 @@ export function GitTab({ project }: { project: Project }) {
 
                 {(compareResult?.incoming ?? []).length ? (
                   <div className="rounded-lg border border-border/50 bg-muted/20 p-1.5">
-                    <p className="px-1 text-[11.5px] text-muted-foreground/60">远程有而本地没有</p>
+                    <p className="px-1 text-2xs text-muted-foreground/60">远程有而本地没有</p>
                     {compareResult?.incoming?.slice(0, 5).map((commit) => (
                       <div key={commit.sha} className="flex items-center gap-2 px-1 py-0.5">
-                        <span className="font-mono text-[11.5px] text-muted-foreground">{commit.sha}</span>
-                        <span className="truncate text-[12px] text-muted-foreground">{commit.subject}</span>
+                        <span className="font-mono text-2xs text-muted-foreground">{commit.sha}</span>
+                        <span className="truncate text-xs text-muted-foreground">{commit.subject}</span>
                       </div>
                     ))}
                   </div>
@@ -312,7 +312,7 @@ export function GitTab({ project }: { project: Project }) {
                       <div key={file.path} className="flex items-center gap-2 px-1 py-0.5">
                         <span
                           className={cn(
-                            'w-4 shrink-0 rounded text-center text-[11.5px] font-bold',
+                            'w-4 shrink-0 rounded text-center text-2xs font-bold',
                             file.status === 'added'
                               ? 'text-[hsl(var(--diff-add))]'
                               : file.status === 'deleted'
@@ -322,7 +322,7 @@ export function GitTab({ project }: { project: Project }) {
                         >
                           {file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : file.status === 'renamed' ? 'R' : 'M'}
                         </span>
-                        <span className="truncate font-mono text-[12px] text-muted-foreground">{file.path}</span>
+                        <span className="truncate font-mono text-xs text-muted-foreground">{file.path}</span>
                       </div>
                     ))}
                   </div>
@@ -335,18 +335,18 @@ export function GitTab({ project }: { project: Project }) {
             <SectionTitle hint="新建分支并提交升级结果">提交并推送</SectionTitle>
             <div className="mt-2 space-y-2">
               <Field label="目标分支" hint={branch ? '不存在则新建' : '必填'}>
-                <Input value={branch} onChange={(e) => setBranch(e.target.value)} className="font-mono text-[12.5px]" />
+                <Input value={branch} onChange={(e) => setBranch(e.target.value)} className="font-mono text-sm" />
               </Field>
               <Field label="提交信息">
                 <Textarea
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={2}
-                  className="text-[12.5px]"
+                  className="text-sm"
                   placeholder="feat: upgrade to v1.5.0"
                 />
               </Field>
-              <div className="flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 <label className="flex cursor-pointer items-center gap-1.5">
                   <input type="checkbox" checked={push} onChange={(e) => setPush(e.target.checked)} className="accent-[hsl(var(--primary))]" />
                   推送到远程
@@ -371,7 +371,7 @@ export function GitTab({ project }: { project: Project }) {
               {runtime?.lastAction ? (
                 <div
                   className={cn(
-                    'rounded-lg border px-2.5 py-2 text-[12px]',
+                    'rounded-lg border px-2.5 py-2 text-xs',
                     runtime.lastAction.ok
                       ? 'border-[hsl(var(--success)/0.3)] bg-[hsl(var(--success)/0.06)] text-[hsl(var(--success))]'
                       : 'border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning)/0.06)] text-[hsl(var(--warning))]',
@@ -381,17 +381,17 @@ export function GitTab({ project }: { project: Project }) {
                     {runtime.lastAction.ok ? <GitPullRequest className="h-3 w-3" /> : <TriangleAlert className="h-3 w-3" />}
                     {runtime.lastAction.message}
                   </div>
-                  <div className="mt-0.5 text-[11.5px] opacity-80">更新于 {formatRelative(runtime.lastAction.at)}</div>
+                  <div className="mt-0.5 text-2xs opacity-80">更新于 {formatRelative(runtime.lastAction.at)}</div>
                 </div>
               ) : null}
 
               {runtime?.error ? (
-                <p className="rounded-lg border border-destructive/30 bg-destructive/[0.06] px-2.5 py-2 text-[12px] text-destructive">
+                <p className="rounded-lg border border-destructive/30 bg-destructive/[0.06] px-2.5 py-2 text-xs text-destructive">
                   {runtime.error}
                 </p>
               ) : null}
 
-              <p className="text-[11.5px] leading-relaxed text-muted-foreground/60">
+              <p className="text-2xs leading-relaxed text-muted-foreground/60">
                 推送前会把升级结果中「变更过的文件」同步进 Git 工作区并提交，未参与升级的文件保持原样。
               </p>
             </div>

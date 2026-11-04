@@ -34,7 +34,7 @@ export function Tooltip({
         <TooltipPrimitive.Content
           side={side}
           sideOffset={6}
-          className="z-[80] max-w-xs rounded-md border border-border bg-popover px-2 py-1 text-[12.5px] text-popover-foreground shadow-float animate-fade-in"
+          className="z-[80] max-w-xs rounded-md border border-border bg-popover px-2 py-1 text-sm text-popover-foreground shadow-float animate-fade-in"
         >
           {content}
         </TooltipPrimitive.Content>
@@ -74,12 +74,12 @@ export function DialogContent({
         {(title || description) && (
           <div className="border-b border-border/70 px-5 py-4">
             {title ? (
-              <DialogPrimitive.Title className="text-[15px] font-semibold tracking-tight text-foreground">
+              <DialogPrimitive.Title className="text-md font-semibold tracking-tight text-foreground">
                 {title}
               </DialogPrimitive.Title>
             ) : null}
             {description ? (
-              <DialogPrimitive.Description className="mt-1 text-[13px] text-muted-foreground">
+              <DialogPrimitive.Description className="mt-1 text-sm text-muted-foreground">
                 {description}
               </DialogPrimitive.Description>
             ) : null}
@@ -146,7 +146,7 @@ export function DropdownItem({
       disabled={disabled}
       onSelect={onSelect}
       className={cn(
-        'relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] outline-none transition-colors data-[highlighted]:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
+        'relative flex cursor-pointer select-none items-center gap-2 rounded-lg px-2 py-1.5 text-sm outline-none transition-colors data-[highlighted]:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-40',
         danger ? 'text-destructive data-[highlighted]:bg-destructive/10' : 'text-foreground',
         className,
       )}
@@ -162,7 +162,7 @@ export function DropdownSeparator() {
 
 export function DropdownLabel({ children }: { children: React.ReactNode }) {
   return (
-    <DropdownPrimitive.Label className="px-2 py-1.5 text-[12px] font-medium text-muted-foreground/70">
+    <DropdownPrimitive.Label className="px-2 py-1.5 text-xs font-medium text-muted-foreground/70">
       {children}
     </DropdownPrimitive.Label>
   )
@@ -219,7 +219,7 @@ export function Select({
     <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
       <SelectPrimitive.Trigger
         className={cn(
-          'flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-background/45 px-3 text-[13.5px] text-foreground outline-none transition-colors hover:border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/15',
+          'flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-background/45 px-3 text-base text-foreground outline-none transition-colors hover:border-border focus:border-primary/50 focus:ring-2 focus:ring-primary/15',
           className,
         )}
       >
@@ -239,11 +239,11 @@ export function Select({
               <SelectPrimitive.Item
                 key={opt.value}
                 value={opt.value}
-                className="relative flex cursor-pointer select-none items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-[13px] text-foreground outline-none data-[highlighted]:bg-accent"
+                className="relative flex cursor-pointer select-none items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm text-foreground outline-none data-[highlighted]:bg-accent"
               >
                 <div className="flex flex-col">
                   <SelectPrimitive.ItemText>{opt.label}</SelectPrimitive.ItemText>
-                  {opt.hint ? <span className="text-[12px] text-muted-foreground">{opt.hint}</span> : null}
+                  {opt.hint ? <span className="text-xs text-muted-foreground">{opt.hint}</span> : null}
                 </div>
                 <SelectPrimitive.ItemIndicator>
                   <Check className="h-3.5 w-3.5 text-primary" />
@@ -349,7 +349,7 @@ export function TabsTrigger({
     <TabsPrimitive.Trigger
       value={value}
       className={cn(
-        'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground',
+        'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground',
         'data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:shadow-[0_1px_0_0_hsl(var(--foreground)/0.06)]',
         className,
       )}

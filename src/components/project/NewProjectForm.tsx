@@ -114,7 +114,7 @@ export function NewProjectForm({
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[12.5px] font-medium text-muted-foreground">
+          <span className="text-sm font-medium text-muted-foreground">
             方案与代码来源 <span className="font-normal normal-case text-muted-foreground/50">可选</span>
           </span>
           <Segmented<SourceKind>
@@ -146,7 +146,7 @@ export function NewProjectForm({
               value={source}
               onChange={(e) => setSource(e.target.value)}
               placeholder="或直接填写仓库地址：https://git.example.com/group/repo.git"
-              className="font-mono text-[12.5px]"
+              className="font-mono text-sm"
             />
           </div>
         ) : (
@@ -155,7 +155,7 @@ export function NewProjectForm({
               value={source}
               onChange={(e) => setSource(e.target.value)}
               placeholder={meta.placeholder}
-              className="flex-1 font-mono text-[12.5px]"
+              className="flex-1 font-mono text-sm"
             />
             {kind === 'local' ? (
               <Button
@@ -172,7 +172,7 @@ export function NewProjectForm({
             ) : null}
           </div>
         )}
-        <p className="flex items-center gap-1 text-[12px] text-muted-foreground/70">
+        <p className="flex items-center gap-1 text-xs text-muted-foreground/70">
           <Sparkles className="h-3 w-3 text-primary/70" /> {meta.hint}
         </p>
       </div>
@@ -192,7 +192,7 @@ export function NewProjectForm({
             key={hint}
             onClick={() => setRequest((prev) => (prev ? `${prev}\n${hint}` : hint))}
             className={cn(
-              'rounded-full border border-border/70 bg-card/40 px-2 py-0.5 text-[12px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground',
+              'rounded-full border border-border/70 bg-card/40 px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground',
             )}
           >
             + {hint}
@@ -207,7 +207,7 @@ export function NewProjectForm({
         创建并自动执行
         <ArrowRight className="h-4 w-4" />
       </Button>
-      <p className="text-center text-[12px] leading-relaxed text-muted-foreground/60">
+      <p className="text-center text-xs leading-relaxed text-muted-foreground/60">
         解析方案 → 下载代码 → 生成 UPDATE.md → 升级代码 → 输出差异，全程可在项目页实时查看
       </p>
     </div>

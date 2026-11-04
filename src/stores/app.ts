@@ -32,6 +32,14 @@ export interface Appearance {
   codeWrap: boolean
   diffLayout: 'unified' | 'split'
   diffHighlight: boolean
+  /** 字号缩放：只放大/缩小文字，不改布局密度 */
+  fontScale: number
+  /** 页面缩放：整个界面等比缩放（Electron 里走 zoomFactor，保持清晰） */
+  uiZoom: number
+  /** 自定义字体族名；空字符串表示使用内置字体 */
+  fontSans: string
+  fontDisplay: string
+  fontMono: string
 }
 
 // 一个主题 = 一个色相。默认赭石：暖色打在冷墨上，是最不像「AI 默认紫」的选择。
@@ -62,6 +70,24 @@ const DEFAULT_APPEARANCE: Appearance = {
   codeWrap: false,
   diffLayout: 'unified',
   diffHighlight: true,
+  fontScale: 1,
+  uiZoom: 1,
+  fontSans: '',
+  fontDisplay: '',
+  fontMono: '',
+}
+
+/** 内置字体栈：自定义字体插在最前面，加载失败自动回落到这里 */
+export const BASE_STACKS = {
+  sans: "'IBM Plex Sans Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif",
+  display: "'Spline Sans Mono Variable', monospace",
+  mono: "'JetBrains Mono Variable', 'SFMono-Regular', 'SF Mono', Menlo, Consolas, monospace",
+}
+
+export function stackFor(kind: 'sans' | 'display' | 'mono', family: string): string {
+  const base = BASE_STACKS[kind]
+  const trimmed = family.trim()
+  return trimmed ? '"' + trimmed + '", ' + base : base
 }
 
 interface AppState {
@@ -107,7 +133,25 @@ export const useAppStore = create<AppState>()(
         root.dataset.density = appearance.density
         root.dataset.effects = appearance.effects
         root.classList.toggle('dark', appearance.mode === 'dark')
-        root.style.setProperty('--radius', `${appearance.radius}px`)
+        // 平台标记：CSS 据此选择字体平滑策略（Windows 保留 ClearType，最清晰）
+        const platform = (window as unknown as { tsd?: { platform?: string } }).tsd?.platform
+        root.dataset.platform = platform ?? 'web'
+        root.style.setProperty('--radius', appearance.radius + 'px')
+        // 字号缩放：所有文字尺寸都走 --text-* token，乘一个系数即可整体放大
+        root.style.setProperty('--font-scale', String(appearance.fontScale || 1))
+        // 自定义字体（系统字体扫描后可选），失败自动回落到内置字体栈
+        root.style.setProperty('--font-sans', stackFor('sans', appearance.fontSans || ''))
+        root.style.setProperty('--font-display', stackFor('display', appearance.fontDisplay || ''))
+        root.style.setProperty('--font-mono', stackFor('mono', appearance.fontMono || ''))
+        // 页面缩放：Electron 用 zoomFactor（矢量重排，高分屏不糊）；浏览器预览退回 CSS zoom
+        const zoom = appearance.uiZoom || 1
+        const bridge = (window as unknown as { tsd?: { setZoom?: (factor: number) => Promise<void> } }).tsd
+        if (bridge && bridge.setZoom) {
+          void bridge.setZoom(zoom)
+          root.style.removeProperty('zoom')
+        } else {
+          root.style.setProperty('zoom', String(zoom))
+        }
         const meta = document.querySelector('meta[name="theme-color"]')
         if (meta) meta.setAttribute('content', appearance.mode === 'dark' ? '#08090f' : '#f7f8fb')
       },

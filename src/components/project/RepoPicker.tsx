@@ -48,7 +48,7 @@ export function RepoPicker({
               }
             }}
             placeholder="输入名称前缀检索仓库，例如 mic → 匹配 micabc / micro-service"
-            className="pl-8 font-mono text-[12.5px]"
+            className="pl-8 font-mono text-sm"
           />
         </div>
         <Button size="md" variant="secondary" className="shrink-0 gap-1.5" onClick={() => void search()} loading={loading}>
@@ -57,7 +57,7 @@ export function RepoPicker({
       </div>
 
       {error ? (
-        <p className="rounded-lg border border-destructive/30 bg-destructive/[0.06] px-2.5 py-2 text-[12.5px] text-destructive">
+        <p className="rounded-lg border border-destructive/30 bg-destructive/[0.06] px-2.5 py-2 text-sm text-destructive">
           {error}
         </p>
       ) : null}
@@ -65,15 +65,15 @@ export function RepoPicker({
       {result ? (
         <div className="rounded-lg border border-border/60 bg-background/25">
           <div className="flex items-center gap-2 border-b border-border/50 px-2.5 py-1.5">
-            <span className="text-[12px] text-muted-foreground/60">检索结果</span>
-            <Badge variant="muted" className="font-mono text-[11.5px]">
+            <span className="text-xs text-muted-foreground/60">检索结果</span>
+            <Badge variant="muted" className="font-mono text-2xs">
               {result.provider}
             </Badge>
-            <span className="ml-auto text-[12px] text-muted-foreground/60">{result.repos.length} 个仓库</span>
+            <span className="ml-auto text-xs text-muted-foreground/60">{result.repos.length} 个仓库</span>
           </div>
           {result.repos.length === 0 ? (
             <div className="px-3 py-4 text-center">
-              <p className="text-[12.5px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 {result.note || '没有匹配的仓库'}
               </p>
             </div>
@@ -98,18 +98,18 @@ export function RepoPicker({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
-                        <span className="truncate text-[12.5px] font-medium">{repo.name}</span>
-                        <Badge variant="outline" className="shrink-0 font-mono text-[11.5px]">
+                        <span className="truncate text-sm font-medium">{repo.name}</span>
+                        <Badge variant="outline" className="shrink-0 font-mono text-2xs">
                           {repo.defaultBranch || 'main'}
                         </Badge>
                       </span>
-                      <span className="block truncate text-[12px] text-muted-foreground/70">
+                      <span className="block truncate text-xs text-muted-foreground/70">
                         {repo.fullName || repo.path || repo.url}
                         {repo.updatedAt ? ` · ${formatRelative(repo.updatedAt)}` : ''}
                       </span>
                     </span>
                     {repo.description ? (
-                      <span className="hidden max-w-[180px] truncate text-[12px] text-muted-foreground/60 sm:block">
+                      <span className="hidden max-w-[180px] truncate text-xs text-muted-foreground/60 sm:block">
                         {repo.description}
                       </span>
                     ) : null}
@@ -119,7 +119,7 @@ export function RepoPicker({
             </div>
           )}
           {result.note && result.repos.length > 0 ? (
-            <p className="border-t border-border/50 px-2.5 py-1.5 text-[12px] text-[hsl(var(--warning))]">
+            <p className="border-t border-border/50 px-2.5 py-1.5 text-xs text-[hsl(var(--warning))]">
               {result.note}
             </p>
           ) : null}
@@ -127,7 +127,7 @@ export function RepoPicker({
       ) : (
         <div className="flex items-start gap-2 rounded-lg border border-border/50 bg-muted/20 px-2.5 py-2">
           <Sparkles className="mt-0.5 h-3 w-3 shrink-0 text-primary/70" />
-          <p className="text-[12px] leading-relaxed text-muted-foreground/80">
+          <p className="text-xs leading-relaxed text-muted-foreground/80">
             按前缀检索远程仓库（GitLab / GitHub / 通用 REST），也可以在设置里配置本地仓库扫描目录。
             {loading ? <Loader2 className="ml-1 inline h-2.5 w-2.5 animate-spin" /> : null}
           </p>

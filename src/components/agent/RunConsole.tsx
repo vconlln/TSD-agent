@@ -45,7 +45,7 @@ export function RunConsole({
     <div className={cn('flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/70 bg-[hsl(var(--surface-1)/0.6)]', className)}>
       <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-2.5 py-1.5">
         <Terminal className="h-3.5 w-3.5 text-muted-foreground/70" />
-        <span className="text-[12.5px] font-medium text-foreground/85">Agent 日志</span>
+        <span className="text-sm font-medium text-foreground/85">Agent 日志</span>
         {run ? (
           <Badge
             variant={run.status === 'running' ? 'default' : run.status === 'failed' ? 'danger' : run.status === 'cancelled' ? 'warning' : 'success'}
@@ -55,7 +55,7 @@ export function RunConsole({
             {run.status === 'running' ? '执行中' : run.status === 'done' ? '已完成' : run.status === 'failed' ? '失败' : run.status === 'queued' ? '排队中' : '已取消'}
           </Badge>
         ) : null}
-        {run ? <span className="tabular text-[12px] text-muted-foreground/60">{formatDuration(elapsedMs)}</span> : null}
+        {run ? <span className="tabular text-xs text-muted-foreground/60">{formatDuration(elapsedMs)}</span> : null}
         <div className="ml-auto flex items-center gap-0.5">
           <Tooltip content={autoScroll ? '已开启自动滚动' : '开启自动滚动'}>
             <button
@@ -93,9 +93,9 @@ export function RunConsole({
           ) : null}
         </div>
       </div>
-      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-2.5 py-2 font-mono text-[12px] leading-[1.75] scroll-area-thin">
+      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto px-2.5 py-2 font-mono text-xs leading-[1.75] scroll-area-thin">
         {visible.length === 0 ? (
-          <p className="py-4 text-center text-[12px] text-muted-foreground/50">等待 Agent 输出…</p>
+          <p className="py-4 text-center text-xs text-muted-foreground/50">等待 Agent 输出…</p>
         ) : (
           visible.map((line) => (
             <div key={line.id} className="flex gap-2">

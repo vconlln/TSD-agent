@@ -21,11 +21,11 @@ export function PageHeader({
   return (
     <div className={cn('flex flex-wrap items-end justify-between gap-4', className)}>
       <div className="min-w-0 space-y-2">
-        <h1 className="text-balance text-[23px] font-semibold leading-[1.2] tracking-[-0.02em] text-foreground">
+        <h1 className="text-balance text-xl font-semibold leading-[1.2] tracking-[-0.02em] text-foreground">
           {title}
         </h1>
         {description ? (
-          <p className="max-w-2xl text-pretty text-[13.5px] leading-relaxed text-muted-foreground">{description}</p>
+          <p className="max-w-2xl text-pretty text-base leading-relaxed text-muted-foreground">{description}</p>
         ) : null}
         {children}
       </div>
@@ -48,8 +48,8 @@ export function SectionTitle({
   return (
     <div className={cn('flex items-center justify-between gap-3', className)}>
       <div className="flex items-center gap-2">
-        <h2 className="text-[13.5px] font-semibold tracking-[-0.01em] text-foreground/90">{children}</h2>
-        {hint ? <span className="text-[12px] text-muted-foreground/70">{hint}</span> : null}
+        <h2 className="text-base font-semibold tracking-[-0.01em] text-foreground/90">{children}</h2>
+        {hint ? <span className="text-xs text-muted-foreground/70">{hint}</span> : null}
       </div>
       {action}
     </div>
@@ -82,11 +82,11 @@ export function MetricCard({
   return (
     <div className={cn('panel grain-border relative overflow-hidden px-3.5 py-3', className)}>
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[12px] font-medium text-muted-foreground/70">{label}</span>
+        <span className="text-xs font-medium text-muted-foreground/70">{label}</span>
         {icon ? <span className="text-muted-foreground/50">{icon}</span> : null}
       </div>
-      <div className={cn('font-display mt-1.5 text-[19px] font-semibold leading-none tabular', valueTone)}>{value}</div>
-      {hint ? <div className="mt-1.5 text-[12px] text-muted-foreground/70">{hint}</div> : null}
+      <div className={cn('font-display mt-1.5 text-lg font-semibold leading-none tabular', valueTone)}>{value}</div>
+      {hint ? <div className="mt-1.5 text-xs text-muted-foreground/70">{hint}</div> : null}
     </div>
   )
 }

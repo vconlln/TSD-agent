@@ -114,8 +114,8 @@ export function Workbench() {
                 <Sparkles className="h-3.5 w-3.5" />
               </span>
               <div>
-                <p className="text-[13.5px] font-semibold tracking-tight">新建升级任务</p>
-                <p className="text-[12px] text-muted-foreground">创建后立即开始执行，无需手动点击每一步</p>
+                <p className="text-base font-semibold tracking-tight">新建升级任务</p>
+                <p className="text-xs text-muted-foreground">创建后立即开始执行，无需手动点击每一步</p>
               </div>
               <Badge variant="muted" className="ml-auto">一键跑通</Badge>
             </div>
@@ -138,14 +138,14 @@ export function Workbench() {
                   { label: '代码行变更', value: stats.lines, tone: 'text-[hsl(var(--diff-add))]' },
                 ].map((item) => (
                   <div key={item.label} className="rounded-lg border border-border/60 bg-background/30 px-2.5 py-2">
-                    <div className="text-[11.5px] text-muted-foreground/60">{item.label}</div>
-                    <div className={`stat-num mt-1 text-[19px] font-semibold leading-none ${item.tone}`}>{item.value}</div>
+                    <div className="text-2xs text-muted-foreground/60">{item.label}</div>
+                    <div className={`stat-num mt-1 text-lg font-semibold leading-none ${item.tone}`}>{item.value}</div>
                   </div>
                 ))}
               </div>
               <div className="mt-3 flex items-center gap-2 rounded-lg border border-border/50 bg-background/20 px-2.5 py-1.5">
                 <Cpu className="h-3 w-3 shrink-0 text-muted-foreground/60" />
-                <span className="truncate text-[12px] text-muted-foreground">
+                <span className="truncate text-xs text-muted-foreground">
                   {health?.model || '未配置模型'} · {health?.engine === 'online' ? '在线' : '离线降级'}
                 </span>
                 <Tooltip content="复制工作目录">
@@ -178,8 +178,8 @@ export function Workbench() {
                       ) : null}
                     </div>
                     <div className="min-w-0 pb-1">
-                      <p className="text-[12.5px] font-medium text-foreground/90">{step.title}</p>
-                      <p className="text-[12px] leading-relaxed text-muted-foreground/70">{step.desc}</p>
+                      <p className="text-sm font-medium text-foreground/90">{step.title}</p>
+                      <p className="text-xs leading-relaxed text-muted-foreground/70">{step.desc}</p>
                     </div>
                   </div>
                 ))}

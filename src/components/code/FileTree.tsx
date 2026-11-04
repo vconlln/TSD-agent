@@ -73,15 +73,15 @@ export function FileTree({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="搜索文件…"
-          className="h-6 min-w-0 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-muted-foreground/50"
+          className="h-6 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
         />
         {loading ? <Spinner size={11} /> : null}
       </div>
       <div className="min-h-0 flex-1 overflow-auto py-1 scroll-area-thin">
         {!tree ? (
-          <p className="px-3 py-6 text-center text-[12.5px] text-muted-foreground/60">{loading ? '加载目录…' : emptyLabel}</p>
+          <p className="px-3 py-6 text-center text-sm text-muted-foreground/60">{loading ? '加载目录…' : emptyLabel}</p>
         ) : rows.length === 0 ? (
-          <p className="px-3 py-6 text-center text-[12.5px] text-muted-foreground/60">没有匹配的文件</p>
+          <p className="px-3 py-6 text-center text-sm text-muted-foreground/60">没有匹配的文件</p>
         ) : (
           rows.map(({ node, depth }) => {
             if (node.path === '' || (node.type === 'dir' && depth === -1)) return null
@@ -119,16 +119,16 @@ export function FileTree({
                   <>
                     <span className="h-3 w-3 shrink-0" />
                     <span
-                      className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-[3px] text-[11.5px] font-bold"
+                      className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-[3px] text-2xs font-bold"
                       style={{ color: langOf(node.path).color }}
                     >
                       <File className="h-3 w-3 opacity-40" />
                     </span>
                   </>
                 )}
-                <span className={cn('truncate text-[12.5px]', node.type === 'dir' && 'font-medium')}>{node.name}</span>
+                <span className={cn('truncate text-sm', node.type === 'dir' && 'font-medium')}>{node.name}</span>
                 {meta ? (
-                  <span className={cn('ml-auto shrink-0 rounded border px-1 text-[11.5px] font-bold', meta.cls)}>
+                  <span className={cn('ml-auto shrink-0 rounded border px-1 text-2xs font-bold', meta.cls)}>
                     {meta.label}
                   </span>
                 ) : null}

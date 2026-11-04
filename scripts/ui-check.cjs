@@ -118,6 +118,37 @@ async function main() {
     await route('/project/' + report.createdProjectId + '?tab=overview')
     await route('/settings', '设置')
 
+    // —— 侧栏不再溢出（用户报的 bug）+ 字号缩放真的生效
+    await route('/projects', '项目库')
+    const sidebarAudit = await evalJs(
+      '(() => {' +
+        'const aside = document.querySelector("aside");' +
+        'if (!aside) return { ok: false, reason: "无侧栏" };' +
+        'let overflowRows = 0;' +
+        'const rows = [...aside.querySelectorAll("a")];' +
+        'for (const row of rows) {' +
+          'const rr = row.getBoundingClientRect();' +
+          'for (const child of row.querySelectorAll("span")) {' +
+            'const cr = child.getBoundingClientRect();' +
+            'if (cr.width > 0 && cr.right - rr.right > 1) overflowRows += 1;' +
+          '}' +
+        '}' +
+        'const root = document.documentElement;' +
+        'const baseSize = parseFloat(getComputedStyle(document.body).fontSize);' +
+        'root.style.setProperty("--font-scale", "1.2");' +
+        'const scaledSize = parseFloat(getComputedStyle(document.body).fontSize);' +
+        'root.style.setProperty("--font-scale", "1");' +
+        'return { ok: true, rows: rows.length, overflowRows, baseSize, scaledSize,' +
+          ' platform: root.dataset.platform || "" };' +
+      '})()',
+    )
+    const sidebarOk = Boolean(sidebarAudit.ok) && sidebarAudit.overflowRows === 0 &&
+      sidebarAudit.scaledSize > sidebarAudit.baseSize
+    report.steps.push({ hash: 'sidebar 溢出 + 字号缩放', ok: sidebarOk, errors: [], ...sidebarAudit })
+    console.log((sidebarOk ? 'PASS ' : 'FAIL ') + 'sidebar rows=' + sidebarAudit.rows +
+      ' overflow=' + sidebarAudit.overflowRows + ' fontScale ' + sidebarAudit.baseSize + '→' + sidebarAudit.scaledSize +
+      ' platform=' + sidebarAudit.platform)
+
     const opened = await evalJs('(() => { const b = document.querySelector("button[aria-label=\\"外观设置\\"]"); if (!b) return false; b.click(); return true })()')
     await sleep(800)
     const panelText = await evalJs('document.body.innerText.includes("主题") || document.body.innerText.includes("外观")')

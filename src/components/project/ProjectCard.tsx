@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, Clock, FileCode2, FolderGit2, MoreHorizontal, Trash2 } from 'lucide-react'
-import { formatRelative, hueOf, initials } from '@/lib/utils'
+import { formatRelative } from '@/lib/utils'
+import { Monogram } from '@/components/common/Monogram'
 import type { Project } from '../../../shared/types'
 import { Badge, Button, StatusDot } from '@/components/ui'
 import { DropdownContent, DropdownItem, DropdownMenu, DropdownMenuTrigger } from '@/components/ui/overlays'
@@ -19,31 +20,18 @@ function statusBadge(project: Project) {
 }
 
 export function ProjectCard({ project, onDelete }: { project: Project; onDelete?: (id: string) => void }) {
-  const hue = hueOf(project.id)
   return (
     <div className="group panel panel-hover relative min-w-0 overflow-hidden p-3.5">
-      <div
-        className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-25 blur-2xl transition-opacity group-hover:opacity-50"
-        style={{ background: `hsl(${hue} 80% 60% / 0.7)` }}
-      />
       <div className="flex items-start gap-2.5">
-        <div
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 text-[12px] font-semibold"
-          style={{
-            background: `linear-gradient(135deg, hsl(${hue} 70% 55% / 0.32), hsl(${(hue + 40) % 360} 70% 55% / 0.14))`,
-            color: `hsl(${hue} 85% 80%)`,
-          }}
-        >
-          {initials(project.name)}
-        </div>
+        <Monogram name={project.name} size={34} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <Link to={`/project/${project.id}`} className="truncate text-[13.5px] font-semibold tracking-tight hover:text-primary">
+            <Link to={`/project/${project.id}`} className="truncate text-base font-semibold tracking-tight hover:text-primary">
               {project.name}
             </Link>
             {statusBadge(project)}
           </div>
-          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted-foreground/70">
+          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground/70">
             <FolderGit2 className="h-3 w-3" />
             <span className="truncate">{project.sourceUrl || '本地目录'}</span>
           </p>
@@ -77,7 +65,7 @@ export function ProjectCard({ project, onDelete }: { project: Project; onDelete?
       </div>
 
       {project.stats ? (
-        <div className="mt-2.5 flex items-center gap-3 text-[12px] tabular text-muted-foreground/70">
+        <div className="mt-2.5 flex items-center gap-3 text-xs tabular text-muted-foreground/70">
           <span className="flex items-center gap-1">
             <FileCode2 className="h-3 w-3" /> {project.stats.filesChanged ?? project.stats.files ?? 0} 个文件
           </span>
@@ -87,7 +75,7 @@ export function ProjectCard({ project, onDelete }: { project: Project; onDelete?
       ) : null}
 
       <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2.5">
-        <span className="flex items-center gap-1 text-[12px] text-muted-foreground/60">
+        <span className="flex items-center gap-1 text-xs text-muted-foreground/60">
           <Clock className="h-3 w-3" /> {formatRelative(project.updatedAt)}
         </span>
         <Link to={`/project/${project.id}`}>

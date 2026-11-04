@@ -44,7 +44,7 @@ export function CodeTab({ project, runtime }: { project: Project; runtime?: Proj
       <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border/70 bg-card/40">
         <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-2 py-1.5">
           <Layers className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <span className="text-[12.5px] font-medium">项目文件</span>
+          <span className="text-sm font-medium">项目文件</span>
           <div className="ml-auto">
             <Segmented<Side>
               size="sm"
@@ -68,7 +68,7 @@ export function CodeTab({ project, runtime }: { project: Project; runtime?: Proj
         />
         <div className="shrink-0 border-t border-border/60 px-2 py-1.5">
           <Tooltip content={treeState?.root || '目录尚未创建'}>
-            <div className="flex items-center gap-1 truncate font-mono text-[11.5px] text-muted-foreground/60">
+            <div className="flex items-center gap-1 truncate font-mono text-2xs text-muted-foreground/60">
               <FolderTree className="h-2.5 w-2.5 shrink-0" />
               <span className="truncate">{treeState?.root || '—'}</span>
             </div>
@@ -85,8 +85,8 @@ export function CodeTab({ project, runtime }: { project: Project; runtime?: Proj
               <Code2 className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-[13.5px] font-medium">选择一个文件开始查看</p>
-              <p className="mt-1 max-w-sm text-[12.5px] leading-relaxed text-muted-foreground">
+              <p className="text-base font-medium">选择一个文件开始查看</p>
+              <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
                 左侧可在「原版」与「升级版」之间切换，带 A / M / D 标记的文件即本次升级的变更文件。
               </p>
             </div>

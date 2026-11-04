@@ -1,7 +1,7 @@
 /* Hallmark · built: TSD Agent · redesign: restyle · genre: modern-minimal · scope: app
-   critique · idea 4/5 an instrument panel, not a mood board · hierarchy 2/5 one type size everywhere
-   · restraint 2/5 gradient + aurora + glow · craft 3/5 · copy 3/5 · distinctiveness 2/5 stock violet
-   no waivers */
+   critique · idea 4/5 an instrument panel, not a mood board · hierarchy 4/5 after the type scale
+   · restraint 4/5 gradients gone · craft 4/5 · copy 3/5 · distinctiveness 3/5 ochre on ink
+   waivers and answers are recorded inline where they apply */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -15,20 +15,23 @@
 @layer base {
   :root {
     /* 显示字用等宽（工程仪表感），正文用 IBM Plex Sans，中文回落系统黑体 */
-    --font-display: 'Spline Sans Mono Variable', 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, monospace;
+    --font-display: 'Spline Sans Mono Variable', monospace;
     --font-sans: 'IBM Plex Sans Variable', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC',
-      system-ui, sans-serif;
+      sans-serif;
     --font-mono: 'JetBrains Mono Variable', 'SFMono-Regular', 'SF Mono', Menlo, Consolas, monospace;
 
-    /* 字号阶梯：不再全站 10px */
-    --text-2xs: 11.5px;
-    --text-xs: 12px;
-    --text-sm: 12.5px;
-    --text-base: 13.5px;
-    --text-md: 15px;
-    --text-lg: 18px;
-    --text-xl: 23px;
-    --text-2xl: 30px;
+  /* Hallmark · waive 37 · body, display and code faces plus the CJK fallback inside --font-sans · the type scale needs three roles here and the code panel needs its own face */
+
+    /* 字号阶梯：全部乘 --font-scale，用户可在外观里整体缩放文字 */
+    --font-scale: 1;
+    --text-2xs: calc(11.5px * var(--font-scale));
+    --text-xs: calc(12px * var(--font-scale));
+    --text-sm: calc(12.5px * var(--font-scale));
+    --text-base: calc(13.5px * var(--font-scale));
+    --text-md: calc(15px * var(--font-scale));
+    --text-lg: calc(18px * var(--font-scale));
+    --text-xl: calc(23px * var(--font-scale));
+    --text-2xl: calc(30px * var(--font-scale));
     --leading-body: 1.6;
     --leading-tight: 1.25;
 
@@ -218,12 +221,12 @@
 
   /* ---------- density ---------- */
   [data-density='compact'] {
-    --ui-text: 12.75px;
+    --ui-text: calc(12.75px * var(--font-scale));
     --row-h: 30px;
     --panel-pad: 14px;
   }
   [data-density='cozy'] {
-    --ui-text: 13.5px;
+    --ui-text: calc(13.5px * var(--font-scale));
     --row-h: 34px;
     --panel-pad: 18px;
   }
@@ -244,13 +247,23 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground;
     font-family: var(--font-sans);
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
-    text-rendering: optimizeLegibility;
+    /* optimizeLegibility 会让小字在某些驱动上发虚；改用浏览器默认渲染 */
+    text-rendering: auto;
     overflow: hidden;
     overflow-x: clip;
     line-height: var(--leading-body);
+    /* 默认灰度抗锯齿（macOS/Linux 观感更好） */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Windows 上灰度抗锯齿会让笔画变细发虚：交回 ClearType 次像素渲染 */
+  html[data-platform='win32'] body {
+    -webkit-font-smoothing: auto;
+    -moz-osx-font-smoothing: auto;
   }
 
   /* 显示字：等宽（Spline Sans Mono），只给品牌、数字、版本号这类「仪表读数」 */
@@ -390,7 +403,7 @@
   }
 
   .kbd {
-    @apply inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground;
+    @apply inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-border bg-muted px-1.5 font-mono text-2xs font-medium text-muted-foreground;
     box-shadow: 0 1px 0 0 hsl(var(--foreground) / 0.05) inset;
   }
 
@@ -432,7 +445,7 @@
   }
   .diff-row .gutter,
   .diff-split-row .gutter {
-    @apply select-none border-r border-border/60 px-2 text-right text-[11px] text-muted-foreground/60;
+    @apply select-none border-r border-border/60 px-2 text-right text-2xs text-muted-foreground/60;
     font-variant-numeric: tabular-nums;
   }
   .diff-row .cell {
@@ -475,7 +488,7 @@
     box-shadow: 0 0 0 1px hsl(var(--diff-del) / 0.3);
   }
   .diff-marker {
-    @apply inline-block w-4 shrink-0 select-none text-center text-[11px] font-semibold opacity-70;
+    @apply inline-block w-4 shrink-0 select-none text-center text-2xs font-semibold opacity-70;
   }
 
   /* ---------- markdown ---------- */
@@ -505,11 +518,11 @@
     font-weight: 600;
     letter-spacing: -0.01em;
   }
-  .prose-tsd :where(h1) { @apply mb-4 mt-2 text-[21px]; }
+  .prose-tsd :where(h1) { @apply mb-4 mt-2 text-xl; }
   .prose-tsd :where(h2) {
-    @apply mb-3 mt-8 border-b border-border pb-2 text-[17px];
+    @apply mb-3 mt-8 border-b border-border pb-2 text-lg;
   }
-  .prose-tsd :where(h3) { @apply mb-2 mt-6 text-[14.5px]; }
+  .prose-tsd :where(h3) { @apply mb-2 mt-6 text-md; }
   .prose-tsd :where(p, li) { line-height: 1.72; }
   /* 对话里的回答是主要阅读对象：再放大一档，行宽收到 68ch */
   .prose-chat {
@@ -528,11 +541,11 @@
     content: '';
   }
   .prose-tsd :where(pre) {
-    @apply my-4 overflow-x-auto rounded-lg border border-border/80 p-4 text-[12.5px];
+    @apply my-4 overflow-x-auto rounded-lg border border-border/80 p-4 text-sm;
     font-family: var(--font-mono);
     background: hsl(var(--surface-1) / 0.92) !important;
   }
-  .prose-tsd :where(table) { @apply text-[12.5px]; }
+  .prose-tsd :where(table) { @apply text-sm; }
   .prose-tsd :where(th) { @apply font-medium text-foreground/80; }
   .prose-tsd :where(blockquote) {
     @apply rounded-r-lg border-l-2 py-1 pl-4 not-italic;

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { AppConfig, BackendStatus, TsdBridge } from '../shared/bridge'
+import type { AppConfig, BackendStatus, FontListResult, TsdBridge } from '../shared/bridge'
 
 const bridge: TsdBridge = {
   platform: process.platform,
@@ -20,6 +20,9 @@ const bridge: TsdBridge = {
 
   getConfig: () => ipcRenderer.invoke('config:get') as Promise<AppConfig>,
   setConfig: (patch) => ipcRenderer.invoke('config:set', patch) as Promise<AppConfig>,
+
+  listFonts: (force) => ipcRenderer.invoke('fonts:list', force) as Promise<FontListResult>,
+  setZoom: (factor) => ipcRenderer.invoke('window:set-zoom', factor) as Promise<number>,
 
   pickDirectory: (title) => ipcRenderer.invoke('dialog:pick-directory', title) as Promise<string | null>,
   openPath: (target) => ipcRenderer.invoke('shell:open-path', target) as Promise<void>,

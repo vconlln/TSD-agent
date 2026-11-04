@@ -64,7 +64,7 @@ export function TitleBar({ title, subtitle }: { title?: string; subtitle?: strin
 
       <div className="h-4 w-px bg-border/70" />
 
-      <div className="flex min-w-0 items-center gap-2 text-[12.5px]">
+      <div className="flex min-w-0 items-center gap-2 text-sm">
         {title ? <span className="truncate font-medium text-foreground/90">{title}</span> : null}
         {subtitle ? (
           <>
@@ -86,7 +86,7 @@ export function TitleBar({ title, subtitle }: { title?: string; subtitle?: strin
             </div>
           }
         >
-          <div className="flex h-6 items-center gap-1.5 rounded-full border border-border/70 bg-card/60 px-2 text-[12px] text-muted-foreground">
+          <div className="flex h-6 items-center gap-1.5 rounded-full border border-border/70 bg-card/60 px-2 text-xs text-muted-foreground">
             <StatusDot tone={online ? 'success' : backend.state === 'starting' ? 'running' : 'danger'} pulse={backend.state === 'starting'} />
             <span className="hidden sm:inline">{stateLabel}</span>
           </div>

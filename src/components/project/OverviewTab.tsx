@@ -48,8 +48,8 @@ function ProgressRing({ value, active, failed }: { value: number; active: boolea
       </svg>
       <div className="absolute inset-0 grid place-items-center">
         <div className="text-center">
-          <div className="font-display text-[17px] font-semibold leading-none tabular">{Math.round(value)}%</div>
-          <div className="mt-1 text-[11.5px] text-muted-foreground/70">进度</div>
+          <div className="font-display text-lg font-semibold leading-none tabular">{Math.round(value)}%</div>
+          <div className="mt-1 text-2xs text-muted-foreground/70">进度</div>
         </div>
       </div>
     </div>
@@ -95,7 +95,7 @@ export function OverviewTab({
             <ProgressRing value={progress} active={active} failed={!!failed} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-[14.5px] font-semibold tracking-tight">
+                <h2 className="text-md font-semibold tracking-tight">
                   {active
                     ? currentStep?.title
                       ? `正在执行：${currentStep.title}`
@@ -115,12 +115,12 @@ export function OverviewTab({
                   </Badge>
                 ) : null}
               </div>
-              <p className="mt-1 line-clamp-2 max-w-2xl text-[12.5px] leading-relaxed text-muted-foreground">
+              <p className="mt-1 line-clamp-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
                 {run?.summary ||
                   currentStep?.detail ||
                   'Agent 将依次解析方案网页、下载基础代码、生成 UPDATE.md、升级代码并计算差异。'}
               </p>
-              <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-muted-foreground/75">
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground/75">
                 <span className="flex items-center gap-1">
                   <Timer className="h-3 w-3" /> {run ? formatDuration(elapsed(run)) : '—'}
                 </span>
@@ -164,10 +164,10 @@ export function OverviewTab({
                 { label: '删除行', value: runtime?.diff?.stats.removed ?? 0, tone: 'del' },
               ].map((s) => (
                 <div key={s.label} className="rounded-lg border border-border/60 bg-background/25 px-2 py-1.5">
-                  <div className="text-[11.5px] text-muted-foreground/60">{s.label}</div>
+                  <div className="text-2xs text-muted-foreground/60">{s.label}</div>
                   <div
                     className={cn(
-                      'stat-num mt-0.5 text-[16px] font-semibold leading-none',
+                      'font-display mt-0.5 text-md font-semibold leading-none tabular',
                       s.tone === 'add' ? 'text-[hsl(var(--diff-add))]' : s.tone === 'del' ? 'text-[hsl(var(--diff-del))]' : 'text-foreground',
                     )}
                   >
@@ -188,8 +188,8 @@ export function OverviewTab({
           <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/[0.06] px-3 py-2.5">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
             <div className="min-w-0">
-              <p className="text-[12.5px] font-medium text-destructive">执行失败</p>
-              <p className="mt-0.5 break-words text-[12.5px] leading-relaxed text-muted-foreground">{run.error}</p>
+              <p className="text-sm font-medium text-destructive">执行失败</p>
+              <p className="mt-0.5 break-words text-sm leading-relaxed text-muted-foreground">{run.error}</p>
             </div>
           </div>
         ) : null}
@@ -209,7 +209,7 @@ export function OverviewTab({
               <SectionTitle hint="本次升级需求">需求与产物</SectionTitle>
               <div className="mt-2.5 space-y-2">
                 <div className="rounded-lg border border-border/50 bg-background/25 p-2.5">
-                  <p className="line-clamp-4 whitespace-pre-wrap text-[12.5px] leading-relaxed text-foreground/80">
+                  <p className="line-clamp-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">
                     {run?.prompt || project.description || '尚未提交升级需求'}
                   </p>
                 </div>
@@ -221,8 +221,8 @@ export function OverviewTab({
                       className="group flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-accent/60"
                     >
                       <artifact.icon className={cn('h-3.5 w-3.5 shrink-0', artifact.exists ? 'text-primary/80' : 'text-muted-foreground/40')} />
-                      <span className="shrink-0 text-[12px] text-muted-foreground">{artifact.label}</span>
-                      <span className="truncate font-mono text-[12px] text-muted-foreground/60">{artifact.path}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{artifact.label}</span>
+                      <span className="truncate font-mono text-xs text-muted-foreground/60">{artifact.path}</span>
                       <FolderOpen className="ml-auto h-3 w-3 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/70" />
                     </button>
                   ))}
@@ -234,7 +234,7 @@ export function OverviewTab({
               <SectionTitle hint="最近 5 次">运行历史</SectionTitle>
               <div className="mt-2 space-y-1">
                 {(runtime?.runs ?? []).slice(0, 5).map((r) => (
-                  <div key={r.id} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[12px]">
+                  <div key={r.id} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-xs">
                     <StatusDot tone={r.status === 'failed' ? 'danger' : r.status === 'running' ? 'running' : 'success'} />
                     <span className="truncate text-muted-foreground">
                       {r.kind === 'chat' ? '对话修改' : '升级执行'} · {formatRelative(r.startedAt)}
@@ -243,7 +243,7 @@ export function OverviewTab({
                   </div>
                 ))}
                 {!runtime?.runs.length ? (
-                  <p className="px-1.5 py-2 text-[12px] text-muted-foreground/60">还没有运行记录</p>
+                  <p className="px-1.5 py-2 text-xs text-muted-foreground/60">还没有运行记录</p>
                 ) : null}
               </div>
             </div>

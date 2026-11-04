@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
 /* ------------------------------- Button ------------------------------- */
 
 const buttonVariants = cva(
-  'relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg text-[13.5px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 active:translate-y-[0.5px]',
+  'relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg text-base font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 active:translate-y-[0.5px]',
   {
     variants: {
       variant: {
@@ -24,10 +24,10 @@ const buttonVariants = cva(
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
-        xs: 'h-7 gap-1.5 rounded-md px-2 text-[12.5px]',
-        sm: 'h-8 px-3 text-[13px]',
+        xs: 'h-7 gap-1.5 rounded-md px-2 text-sm',
+        sm: 'h-8 px-3 text-sm',
         md: 'h-9 px-3.5',
-        lg: 'h-11 rounded-xl px-5 text-[14px]',
+        lg: 'h-11 rounded-xl px-5 text-base',
         icon: 'h-9 w-9',
         'icon-sm': 'h-7 w-7 rounded-md',
       },
@@ -93,7 +93,7 @@ Button.displayName = 'Button'
 /* ------------------------------- Badge -------------------------------- */
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[12px] font-medium leading-4 tabular',
+  'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-medium leading-4 tabular',
   {
     variants: {
       variant: {
@@ -126,7 +126,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input
       ref={ref}
       className={cn(
-        'flex h-9 w-full rounded-lg border border-input bg-background/45 px-3 py-1.5 text-[13.5px] text-foreground shadow-[0_1px_0_0_hsl(var(--foreground)/0.03)_inset] outline-none transition-colors',
+        'flex h-9 w-full rounded-lg border border-input bg-background/45 px-3 py-1.5 text-base text-foreground shadow-[0_1px_0_0_hsl(var(--foreground)/0.03)_inset] outline-none transition-colors',
         'placeholder:text-muted-foreground/60 hover:border-border focus:border-primary/50 focus:bg-background/70 focus:ring-2 focus:ring-primary/15',
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,
@@ -142,7 +142,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
     <textarea
       ref={ref}
       className={cn(
-        'flex min-h-[80px] w-full resize-none rounded-lg border border-input bg-background/45 px-3 py-2 text-[13.5px] leading-relaxed text-foreground outline-none transition-colors',
+        'flex min-h-[80px] w-full resize-none rounded-lg border border-input bg-background/45 px-3 py-2 text-base leading-relaxed text-foreground outline-none transition-colors',
         'placeholder:text-muted-foreground/60 hover:border-border focus:border-primary/50 focus:bg-background/70 focus:ring-2 focus:ring-primary/15',
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,
@@ -156,7 +156,7 @@ Textarea.displayName = 'Textarea'
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={cn('text-[12.5px] font-medium text-muted-foreground', className)}
+      className={cn('text-sm font-medium text-muted-foreground', className)}
       {...props}
     />
   )
@@ -179,7 +179,7 @@ export function Field({
     <div className={cn('space-y-2', className)}>
       <div className="flex items-baseline justify-between gap-3">
         <Label htmlFor={htmlFor}>{label}</Label>
-        {hint ? <span className="text-[12px] text-muted-foreground/70">{hint}</span> : null}
+        {hint ? <span className="text-xs text-muted-foreground/70">{hint}</span> : null}
       </div>
       {children}
     </div>
@@ -305,7 +305,7 @@ export function Segmented<T extends string>({
             onClick={() => onChange(opt.value)}
             className={cn(
               'relative inline-flex items-center gap-1.5 rounded-[7px] font-medium transition-colors',
-              size === 'sm' ? 'h-6 px-2 text-[12.5px]' : 'h-7 px-2.5 text-[13px]',
+              size === 'sm' ? 'h-6 px-2 text-sm' : 'h-7 px-2.5 text-sm',
               active
                 ? 'bg-card text-foreground shadow-[var(--shadow-raised)]'
                 : 'text-muted-foreground hover:text-foreground',
@@ -314,7 +314,7 @@ export function Segmented<T extends string>({
             {opt.icon}
             {opt.label}
             {typeof opt.count === 'number' && opt.count > 0 ? (
-              <span className="tabular text-[11.5px] text-muted-foreground/80">{opt.count}</span>
+              <span className="tabular text-2xs text-muted-foreground/80">{opt.count}</span>
             ) : null}
           </button>
         )
@@ -346,8 +346,8 @@ export function EmptyState({
         </div>
       ) : null}
       <div className="space-y-1">
-        <p className="text-[14px] font-medium text-foreground">{title}</p>
-        {description ? <p className="max-w-sm text-[13px] leading-relaxed text-muted-foreground">{description}</p> : null}
+        <p className="text-base font-medium text-foreground">{title}</p>
+        {description ? <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">{description}</p> : null}
       </div>
       {action}
     </div>

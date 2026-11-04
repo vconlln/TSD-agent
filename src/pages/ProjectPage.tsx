@@ -118,8 +118,8 @@ export function ProjectPage() {
     return (
       <div className="grid h-full place-items-center">
         <div className="text-center">
-          <p className="text-[14px] font-medium">项目不存在或已被删除</p>
-          <p className="mt-1 text-[12.5px] text-muted-foreground">它可能位于另一个工作目录，或后端工作区被重置。</p>
+          <p className="text-base font-medium">项目不存在或已被删除</p>
+          <p className="mt-1 text-sm text-muted-foreground">它可能位于另一个工作目录，或后端工作区被重置。</p>
           <Button size="sm" variant="secondary" className="mt-4" onClick={() => navigate('/')}>
             返回工作台
           </Button>
@@ -152,18 +152,18 @@ export function ProjectPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-[19px] font-semibold tracking-tight">{project.name}</h1>
+                <h1 className="truncate text-lg font-semibold tracking-tight">{project.name}</h1>
                 <Badge variant={status.variant} className="gap-1">
                   {active ? <StatusDot tone="running" pulse /> : <StatusDot tone={status.tone} />}
                   {status.label}
                 </Badge>
-                <div className="flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 font-mono text-[12px] text-muted-foreground">
+                <div className="flex items-center gap-1 rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
                   <span>v{project.baseVersion}</span>
                   <ArrowUpRight className="h-2.5 w-2.5 text-primary" />
                   <span className="text-primary">v{project.targetVersion}</span>
                 </div>
               </div>
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground/75">
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground/75">
                 {project.sourceUrl ? (
                   <button
                     onClick={() => window.tsd?.openExternal(project.sourceUrl!)}
@@ -277,14 +277,14 @@ export function ProjectPage() {
                   key={item.id}
                   onClick={() => setTab(item.id)}
                   className={cn(
-                    'relative flex items-center gap-1.5 px-3 py-2 text-[13px] font-medium transition-colors',
+                    'relative flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors',
                     selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground/85',
                   )}
                 >
                   <item.icon className={cn('h-3.5 w-3.5', selected ? 'text-primary' : 'text-muted-foreground/70')} />
                   {item.label}
                   {count > 0 ? (
-                    <span className="rounded bg-muted px-1 text-[11.5px] tabular text-muted-foreground">{count}</span>
+                    <span className="rounded bg-muted px-1 text-2xs tabular text-muted-foreground">{count}</span>
                   ) : null}
                   {selected ? (
                     <motion.span

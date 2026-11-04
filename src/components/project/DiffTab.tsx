@@ -28,10 +28,10 @@ export function DiffTab({
     <div className="flex h-full min-h-0 flex-col gap-2.5">
       <div className="flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-card/40 px-3 py-2">
         <GitCompareArrows className="h-4 w-4 text-primary" />
-        <span className="text-[12.5px] font-medium">代码差异</span>
+        <span className="text-sm font-medium">代码差异</span>
         <Badge variant="muted">{summary.changed} 个文件</Badge>
-        <span className="tabular text-[12px] text-[hsl(var(--diff-add))]">+{summary.added}</span>
-        <span className="tabular text-[12px] text-[hsl(var(--diff-del))]">-{summary.removed}</span>
+        <span className="tabular text-xs text-[hsl(var(--diff-add))]">+{summary.added}</span>
+        <span className="tabular text-xs text-[hsl(var(--diff-del))]">-{summary.removed}</span>
         <div className="flex items-center gap-1 rounded-md bg-background/40 px-1.5 py-1">
           <div className="flex h-1.5 w-24 overflow-hidden rounded-full bg-muted">
             <span className="h-full bg-[hsl(var(--diff-add))]" style={{ width: `${summary.added + summary.removed ? (summary.added / (summary.added + summary.removed)) * 100 : 0}%` }} />
@@ -39,7 +39,7 @@ export function DiffTab({
           </div>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <span>语法高亮</span>
             <Switch
               checked={appearance.diffHighlight}
@@ -66,13 +66,13 @@ export function DiffTab({
       {changedPlan.length ? (
         <div className="flex shrink-0 flex-wrap items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/[0.045] px-2.5 py-1.5">
           <Sparkles className="h-3 w-3 text-primary" />
-          <span className="text-[12px] text-muted-foreground">方案变更 {changedPlan.length} 段：</span>
+          <span className="text-xs text-muted-foreground">方案变更 {changedPlan.length} 段：</span>
           {changedPlan.slice(0, 6).map((s) => (
-            <span key={s.key} className="rounded bg-background/50 px-1.5 py-0.5 text-[11.5px] text-muted-foreground">
+            <span key={s.key} className="rounded bg-background/50 px-1.5 py-0.5 text-2xs text-muted-foreground">
               {s.heading}
             </span>
           ))}
-          {changedPlan.length > 6 ? <span className="text-[11.5px] text-muted-foreground">…</span> : null}
+          {changedPlan.length > 6 ? <span className="text-2xs text-muted-foreground">…</span> : null}
         </div>
       ) : null}
 

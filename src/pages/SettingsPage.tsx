@@ -26,6 +26,7 @@ import { Select, Slider, Switch, Tooltip } from '@/components/ui/overlays'
 import { PageHeader, SectionTitle } from '@/components/common/PageHeader'
 import { W3Card } from '@/components/settings/W3Card'
 import { AgentCard } from '@/components/settings/AgentCard'
+import { TypographyCard } from '@/components/settings/TypographyCard'
 import { GitSettingsCard } from '@/components/settings/GitSettingsCard'
 import { cn } from '@/lib/utils'
 
@@ -47,8 +48,8 @@ function Row({
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/50 py-2.5 last:border-0">
       <div className="min-w-0">
-        <p className="text-[13px] font-medium text-foreground/90">{label}</p>
-        {hint ? <p className="mt-0.5 max-w-xl text-[12px] leading-relaxed text-muted-foreground/70">{hint}</p> : null}
+        <p className="text-sm font-medium text-foreground/90">{label}</p>
+        {hint ? <p className="mt-0.5 max-w-xl text-xs leading-relaxed text-muted-foreground/70">{hint}</p> : null}
       </div>
       <div className="shrink-0">{children}</div>
     </div>
@@ -168,7 +169,7 @@ export function SettingsPage() {
         />
 
         {error ? (
-          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/[0.06] px-3 py-2 text-[12.5px] text-destructive">
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/[0.06] px-3 py-2 text-sm text-destructive">
             <span className="min-w-0 flex-1">读取配置失败：{error}</span>
             <Button
               size="xs"
@@ -183,6 +184,8 @@ export function SettingsPage() {
             </Button>
           </div>
         ) : null}
+
+        <TypographyCard />
 
         <W3Card />
 
@@ -211,7 +214,7 @@ export function SettingsPage() {
                     value={settings.engine.model}
                     onChange={(e) => setSettings({ ...settings, engine: { ...settings.engine, model: e.target.value } })}
                     placeholder="deepseek-chat"
-                    className="font-mono text-[12.5px]"
+                    className="font-mono text-sm"
                   />
                 </Field>
               </div>
@@ -221,7 +224,7 @@ export function SettingsPage() {
                   value={settings.engine.baseUrl}
                   onChange={(e) => setSettings({ ...settings, engine: { ...settings.engine, baseUrl: e.target.value } })}
                   placeholder="https://api.deepseek.com/v1"
-                  className="font-mono text-[12.5px]"
+                  className="font-mono text-sm"
                 />
               </Field>
 
@@ -234,7 +237,7 @@ export function SettingsPage() {
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder={settings.engine.apiKeySet ? '••••••••••••••••' : 'sk-…'}
-                  className="font-mono text-[12.5px]"
+                  className="font-mono text-sm"
                 />
               </Field>
 
@@ -275,13 +278,13 @@ export function SettingsPage() {
                 <Button size="sm" variant="outline" className="gap-1.5" loading={testing} onClick={() => void testConnection()}>
                   <Play className="h-3.5 w-3.5" /> 测试连接
                 </Button>
-                <span className="text-[12px] text-muted-foreground/60">
+                <span className="text-xs text-muted-foreground/60">
                   {health?.model ? `当前模型：${health.model}` : '尚未连接'}
                 </span>
               </div>
             </div>
           ) : (
-            <div className="mt-3 flex items-center gap-2 text-[12.5px] text-muted-foreground">
+            <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> 正在读取配置…
             </div>
           )}
@@ -321,7 +324,7 @@ export function SettingsPage() {
                   value={config.externalUrl}
                   onChange={(e) => setConfig({ ...config, externalUrl: e.target.value })}
                   placeholder="http://127.0.0.1:8791"
-                  className="font-mono text-[12.5px]"
+                  className="font-mono text-sm"
                 />
               </Field>
             ) : (
@@ -331,7 +334,7 @@ export function SettingsPage() {
                     value={config?.pythonPath ?? ''}
                     onChange={(e) => config && setConfig({ ...config, pythonPath: e.target.value })}
                     placeholder="/usr/bin/python3 或 C:\\Python311\\python.exe"
-                    className="font-mono text-[12.5px]"
+                    className="font-mono text-sm"
                   />
                 </Field>
                 <Row label="工作目录" hint={health?.workspace || '项目文件、方案与代码快照的存放位置'}>
@@ -356,7 +359,7 @@ export function SettingsPage() {
             )}
 
             <div className="rounded-lg border border-border/60 bg-background/30 px-2.5 py-2">
-              <div className="flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground">
+              <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
                 <Server className="h-3 w-3 shrink-0" />
                 <span className="truncate">{backend.url || '—'}</span>
                 <span className="ml-auto flex shrink-0 items-center gap-1">
@@ -382,7 +385,7 @@ export function SettingsPage() {
                 <RefreshCw className="h-3.5 w-3.5" /> 重启
               </Button>
               {!bridge ? (
-                <span className="text-[12px] text-muted-foreground/60">浏览器模式下不可用，请在桌面应用中使用</span>
+                <span className="text-xs text-muted-foreground/60">浏览器模式下不可用，请在桌面应用中使用</span>
               ) : null}
             </div>
           </div>
@@ -438,7 +441,7 @@ export function SettingsPage() {
 
         <Card>
           <SectionTitle hint="TSD Agent">关于</SectionTitle>
-          <div className="mt-3 space-y-2 text-[12.5px] text-muted-foreground">
+          <div className="mt-3 space-y-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-2">
               <Info className="h-3.5 w-3.5" />
               <span>版本</span>
@@ -476,7 +479,7 @@ export function SettingsPage() {
               >
                 <ExternalLink className="h-3 w-3" /> 后端接口文档
               </Button>
-              <span className="ml-auto flex items-center gap-1 text-[12px] text-muted-foreground/60">
+              <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground/60">
                 <Sparkles className="h-2.5 w-2.5" /> Electron + React + FastAPI
               </span>
             </div>

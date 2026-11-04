@@ -57,7 +57,7 @@ export function AgentDock({
         <span className="grid h-6 w-6 place-items-center rounded-lg bg-primary text-primary-foreground">
           <Sparkles className="h-3 w-3" />
         </span>
-        <span className="text-[12.5px] font-medium">Agent 控制台</span>
+        <span className="text-sm font-medium">Agent 控制台</span>
         {active ? (
           <Badge variant="default" className="gap-1">
             <StatusDot tone="running" pulse /> 运行中
@@ -78,7 +78,7 @@ export function AgentDock({
       </div>
 
       <div className="shrink-0 space-y-2 border-b border-border/60 px-3 py-2.5">
-        <div className="flex items-center justify-between text-[12px] text-muted-foreground">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span className="flex items-center gap-1">
             <Timer className="h-3 w-3" /> {run ? formatDuration(elapsed(run)) : '—'}
           </span>
@@ -91,7 +91,7 @@ export function AgentDock({
           <Button
             size="sm"
             variant={active ? 'secondary' : 'primary'}
-            className="h-7 flex-1 gap-1.5 text-[12.5px]"
+            className="h-7 flex-1 gap-1.5 text-sm"
             onClick={active ? () => void cancel(project.id) : onStart}
           >
             {active ? (
@@ -103,13 +103,13 @@ export function AgentDock({
             )}
           </Button>
           <Tooltip content="查看用量">
-            <div className="flex h-7 items-center gap-1 rounded-md border border-border/70 px-1.5 text-[11.5px] tabular text-muted-foreground">
+            <div className="flex h-7 items-center gap-1 rounded-md border border-border/70 px-1.5 text-2xs tabular text-muted-foreground">
               <Zap className="h-2.5 w-2.5" />
               {run?.usage?.outputTokens ? `${Math.round(run.usage.outputTokens / 1000)}k` : '—'}
             </div>
           </Tooltip>
         </div>
-        {run?.model ? <p className="truncate text-[11.5px] text-muted-foreground/50">模型 · {run.model}</p> : null}
+        {run?.model ? <p className="truncate text-2xs text-muted-foreground/50">模型 · {run.model}</p> : null}
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 py-2 scroll-area-thin">

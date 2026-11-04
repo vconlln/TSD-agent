@@ -20,13 +20,13 @@ function ConnectionBanner() {
   if (ready || !health) return null
   return (
     <div className="pointer-events-none fixed inset-x-0 top-11 z-[80] flex justify-center px-4">
-      <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[hsl(var(--warning)/0.4)] bg-card/95 px-3 py-1.5 text-[12.5px] text-foreground shadow-float backdrop-blur">
+      <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-[hsl(var(--warning)/0.4)] bg-card/95 px-3 py-1.5 text-sm text-foreground shadow-float backdrop-blur">
         <Loader2 className="h-3.5 w-3.5 animate-spin text-[hsl(var(--warning))]" />
         与本地引擎的连接中断，正在自动重试…
         <Button
           size="xs"
           variant="ghost"
-          className="h-5 px-1.5 text-[12px]"
+          className="h-5 px-1.5 text-xs"
           loading={busy}
           onClick={async () => {
             setBusy(true)
@@ -67,16 +67,16 @@ function BackendGate() {
             {failing ? <ServerOff className="h-5 w-5" /> : <AlertTriangle className="h-5 w-5" />}
           </div>
         )}
-        <h2 className="text-[15px] font-semibold tracking-tight">
+        <h2 className="text-md font-semibold tracking-tight">
           {starting ? '正在启动本地 Agent 引擎…' : failing ? '无法连接后端服务' : '等待后端就绪'}
         </h2>
-        <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
           {starting
             ? '首次启动需要初始化 Python 运行时与工作目录，通常几秒内完成。'
             : backend.message || '请确认 Python 后端已启动，或在设置中切换为外部后端地址。'}
         </p>
         {backend.logTail?.length ? (
-          <pre className="mt-3 max-h-28 overflow-auto rounded-lg border border-border/70 bg-muted/40 p-2 text-left font-mono text-[12px] leading-relaxed text-muted-foreground scroll-area-thin">
+          <pre className="mt-3 max-h-28 overflow-auto rounded-lg border border-border/70 bg-muted/40 p-2 text-left font-mono text-xs leading-relaxed text-muted-foreground scroll-area-thin">
             {backend.logTail.slice(-6).join('\n')}
           </pre>
         ) : null}
@@ -89,7 +89,7 @@ function BackendGate() {
           </Button>
         </div>
         {backend.url ? (
-          <p className="mt-4 font-mono text-[12px] text-muted-foreground/60">{backend.url}</p>
+          <p className="mt-4 font-mono text-xs text-muted-foreground/60">{backend.url}</p>
         ) : null}
       </div>
     </div>
@@ -174,8 +174,8 @@ export function AppShell() {
         toastOptions={{
           classNames: {
             toast:
-              'border border-border bg-popover/95 text-foreground backdrop-blur-xl shadow-float rounded-xl text-[13px]',
-            description: 'text-muted-foreground text-[12.5px]',
+              'border border-border bg-popover/95 text-foreground backdrop-blur-xl shadow-float rounded-xl text-sm',
+            description: 'text-muted-foreground text-sm',
             actionButton: 'bg-primary text-primary-foreground',
           },
         }}

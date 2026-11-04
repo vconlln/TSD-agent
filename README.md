@@ -48,7 +48,11 @@ TSD Agent 把这条链路交给一个自动化的 Agent 流水线，你只需要
   你点「应用到代码」才真正落盘。Markdown、代码块（带复制）、表格、任务清单都能渲染。
 - **推理模型接入**：后端同时支持 DeepSeek 的 `reasoning_content`（deepseek-reasoner）、OpenAI o 系列的 `reasoning`，
   思考过程与正文分开推送（`chat.reasoning` / `chat.delta`），不会混在一起。
-- **13 套主题 × 深浅模式**：极光紫、深海蓝、翡翠绿、落日橙、玫瑰红、樱花粉、石墨灰、霓虹赛博、摩卡棕、薄荷青、午夜靛、琥珀金、终端绿；密度、圆角、背景特效、代码换行、差异布局全部可调，实时生效并持久化。
+- **14 套主题 × 深浅模式**：赭石（默认）、菫紫、深海蓝、翡翠绿、落日橙、玫瑰红、樱花粉、石墨灰、霓虹、摩卡、薄荷、靛蓝、琥珀、终端绿。
+  每个主题只有一个主色相，中性色固定为冷墨/冷纸，不随主题染色。
+- **文字与缩放**：字号缩放 85%–140%（只放大文字）、页面缩放 90%–150%（Electron zoomFactor，按倍率重排重栅格化，高分屏不发虚）、
+  正文/显示/代码三档字体可**扫描本机已安装字体**后任选（Windows 读注册表、macOS/Linux 走 fontconfig），失败自动回落到内置字体栈。
+- **可调项**：密度、圆角、背景层次、代码换行、差异布局，全部即时生效并持久化。
 - **后端可替换**：前端只依赖一套 HTTP + SSE 契约（见 [docs/API.md](docs/API.md)）。既可以用随包分发的参考后端，也可以在设置里连接**你自己的 Python 服务**。
 - **四种代码来源**：方案网页 / Git 仓库 / 代码压缩包 / 本地目录，页面里还能自动发现 GitHub 或 zip 链接。
 - **W3 凭证登录**：在设置里用内网账号换访问凭证并拉取可用模型清单；网关地址属于部署细节，
@@ -119,7 +123,7 @@ TSD Agent 把这条链路交给一个自动化的 Agent 流水线，你只需要
     <td width="50%"><img src="docs/screenshots/01-workbench.png" alt="工作台" /></td>
   </tr>
   <tr>
-    <td align="center"><sub>外观面板 · 13 套主题 / 密度 / 圆角 / 特效</sub></td>
+    <td align="center"><sub>外观面板 · 14 套主题 / 字号缩放 / 页面缩放</sub></td>
     <td align="center"><sub>工作台 · 一条表单启动全流程</sub></td>
   </tr>
 </table>
@@ -299,7 +303,7 @@ npm run verify:package              # 自检打包产物：渲染进程 + 内置
 
 所有颜色、圆角、密度都由 CSS 变量驱动（`src/index.css`），主题 = 一组 `--primary / --grad-from / --grad-to`。
 
-- 已有 7 套主题，可在 `src/stores/app.ts` 的 `THEMES` 中增删。
+- 已有 14 套主题，可在 `src/stores/app.ts` 的 `THEMES` 中增删；每个主题只定义一个色相（`--primary / --ring / --brand-soft`），中性色不随主题变化。
 - 新增一套：在 `index.css` 里加 `[data-theme='your-id'] { ... }` 与对应的 `[data-mode='light'][data-theme='your-id']` 覆盖。
 - 组件全部基于 Radix primitives + Tailwind + CSS 变量，改 token 即改全站外观。
 

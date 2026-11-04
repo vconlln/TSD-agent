@@ -18,8 +18,8 @@ function OptionRow({
   return (
     <div className="flex items-center justify-between gap-4 py-2">
       <div className="min-w-0">
-        <p className="text-[13px] font-medium text-foreground/90">{label}</p>
-        {hint ? <p className="text-[12px] text-muted-foreground/70">{hint}</p> : null}
+        <p className="text-sm font-medium text-foreground/90">{label}</p>
+        {hint ? <p className="text-xs text-muted-foreground/70">{hint}</p> : null}
       </div>
       {children}
     </div>
@@ -55,8 +55,8 @@ export function ThemePanel() {
           >
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
               <div>
-                <p className="text-[13.5px] font-semibold tracking-tight">外观与布局</p>
-                <p className="text-[12px] text-muted-foreground">所有选项即时生效并自动保存</p>
+                <p className="text-base font-semibold tracking-tight">外观与布局</p>
+                <p className="text-xs text-muted-foreground">所有选项即时生效并自动保存</p>
               </div>
               <button
                 onClick={() => setOpen(false)}
@@ -68,7 +68,7 @@ export function ThemePanel() {
 
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 scroll-area-thin">
               <section className="space-y-2">
-                <p className="text-[12px] font-semibold text-muted-foreground/60">明暗模式</p>
+                <p className="text-xs font-semibold text-muted-foreground/60">明暗模式</p>
                 <div className="grid grid-cols-2 gap-2">
                   {([
                     { id: 'dark', label: '深色', icon: Moon },
@@ -97,7 +97,7 @@ export function ThemePanel() {
                           </div>
                           <div className={cn('mx-1.5 h-1.5 w-2/3 rounded-full', item.id === 'dark' ? 'bg-white/10' : 'bg-black/10')} />
                         </div>
-                        <span className="flex items-center gap-1.5 text-[12.5px] font-medium">
+                        <span className="flex items-center gap-1.5 text-sm font-medium">
                           <item.icon className="h-3.5 w-3.5" /> {item.label}
                         </span>
                         {active && (
@@ -111,7 +111,7 @@ export function ThemePanel() {
 
               <section className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-[12px] font-semibold text-muted-foreground/60">主题色</p>
+                  <p className="text-xs font-semibold text-muted-foreground/60">主题色</p>
                   <Badge variant="muted" className="gap-1">
                     <Sparkles className="h-2.5 w-2.5" /> 7 套
                   </Badge>
@@ -143,7 +143,7 @@ export function ThemePanel() {
                         >
                           {active && <span className="h-2 w-2 rounded-full bg-white/90" />}
                         </span>
-                        <span className={cn('text-[11.5px]', active ? 'text-foreground' : 'text-muted-foreground')}>{theme.name}</span>
+                        <span className={cn('text-2xs', active ? 'text-foreground' : 'text-muted-foreground')}>{theme.name}</span>
                       </button>
                     )
                   })}
@@ -174,7 +174,7 @@ export function ThemePanel() {
                     />
                   </div>
                 </OptionRow>
-                <OptionRow label="背景特效" hint="极光 / 网格 / 噪点">
+                <OptionRow label="背景特效" hint="背景明暗层次">
                   <Segmented<Effects>
                     size="sm"
                     value={appearance.effects}
@@ -191,7 +191,37 @@ export function ThemePanel() {
               <Separator />
 
               <section>
-                <p className="mb-1 text-[12px] font-semibold text-muted-foreground/60">
+                <p className="mb-1 text-xs font-semibold text-muted-foreground/60">文字与缩放</p>
+                <OptionRow label="字号" hint={Math.round((appearance.fontScale ?? 1) * 100) + '%'}>
+                  <div className="w-32">
+                    <Slider
+                      min={85}
+                      max={140}
+                      step={5}
+                      value={Math.round((appearance.fontScale ?? 1) * 100)}
+                      onValueChange={(value) => setAppearance({ fontScale: value / 100 })}
+                    />
+                  </div>
+                </OptionRow>
+                <OptionRow label="页面缩放" hint="整页等比，高分屏更清晰">
+                  <Segmented<string>
+                    size="sm"
+                    value={String(appearance.uiZoom ?? 1)}
+                    onChange={(value) => setAppearance({ uiZoom: Number(value) })}
+                    options={[
+                      { value: '0.9', label: '90%' },
+                      { value: '1', label: '100%' },
+                      { value: '1.1', label: '110%' },
+                      { value: '1.25', label: '125%' },
+                    ]}
+                  />
+                </OptionRow>
+              </section>
+
+              <Separator />
+
+              <section>
+                <p className="mb-1 text-xs font-semibold text-muted-foreground/60">
                   代码与差异
                 </p>
                 <OptionRow label="差异布局" hint="并排或单列显示">

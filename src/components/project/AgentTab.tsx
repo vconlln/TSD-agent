@@ -71,10 +71,10 @@ function EntryRow({ entry }: { entry: AgentTraceEntry }) {
         <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
           <Sparkles className="h-3 w-3" />
         </span>
-        <p className="min-w-0 flex-1 whitespace-pre-wrap pt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+        <p className="min-w-0 flex-1 whitespace-pre-wrap pt-1 text-sm leading-relaxed text-muted-foreground">
           {entry.text}
         </p>
-        <span className="shrink-0 pt-1 font-mono text-[11.5px] text-muted-foreground/40">{formatClock(entry.ts)}</span>
+        <span className="shrink-0 pt-1 font-mono text-2xs text-muted-foreground/40">{formatClock(entry.ts)}</span>
       </div>
     )
   }
@@ -95,16 +95,16 @@ function EntryRow({ entry }: { entry: AgentTraceEntry }) {
           ) : (
             <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />
           )}
-          <span className="text-[12.5px] font-medium">验证 {entry.ok ? '通过' : '未通过'}</span>
-          <span className="truncate font-mono text-[12px] text-muted-foreground">{entry.command}</span>
+          <span className="text-sm font-medium">验证 {entry.ok ? '通过' : '未通过'}</span>
+          <span className="truncate font-mono text-xs text-muted-foreground">{entry.command}</span>
           {entry.exitCode !== undefined ? (
-            <Badge variant={entry.ok ? 'success' : 'danger'} className="ml-auto shrink-0 text-[11.5px]">
+            <Badge variant={entry.ok ? 'success' : 'danger'} className="ml-auto shrink-0 text-2xs">
               exit {entry.exitCode}
             </Badge>
           ) : null}
         </button>
         {open && entry.output ? (
-          <pre className="mt-1.5 max-h-56 overflow-auto rounded-md border border-border/50 bg-background/50 p-2 font-mono text-[12px] leading-relaxed text-muted-foreground scroll-area-thin">
+          <pre className="mt-1.5 max-h-56 overflow-auto rounded-md border border-border/50 bg-background/50 p-2 font-mono text-xs leading-relaxed text-muted-foreground scroll-area-thin">
             {entry.output}
           </pre>
         ) : null}
@@ -119,17 +119,17 @@ function EntryRow({ entry }: { entry: AgentTraceEntry }) {
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left">
         <ChevronDown className={cn('h-3 w-3 shrink-0 text-muted-foreground transition-transform', !open && '-rotate-90')} />
         <Icon className={cn('h-3.5 w-3.5 shrink-0', entry.ok ? 'text-primary/80' : 'text-destructive')} />
-        <span className="shrink-0 font-mono text-[12px] text-foreground/90">{entry.tool}</span>
-        <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-muted-foreground">{summary}</span>
-        <span className="shrink-0 tabular text-[11.5px] text-muted-foreground/60">{formatDuration(entry.durationMs)}</span>
+        <span className="shrink-0 font-mono text-xs text-foreground/90">{entry.tool}</span>
+        <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">{summary}</span>
+        <span className="shrink-0 tabular text-2xs text-muted-foreground/60">{formatDuration(entry.durationMs)}</span>
         {entry.ok ? null : (
-          <Badge variant="danger" className="shrink-0 text-[11.5px]">
+          <Badge variant="danger" className="shrink-0 text-2xs">
             失败
           </Badge>
         )}
       </button>
       {open ? (
-        <pre className="max-h-64 overflow-auto border-t border-border/50 bg-[hsl(var(--surface-1)/0.6)] px-2.5 py-2 font-mono text-[12px] leading-relaxed text-muted-foreground scroll-area-thin">
+        <pre className="max-h-64 overflow-auto border-t border-border/50 bg-[hsl(var(--surface-1)/0.6)] px-2.5 py-2 font-mono text-xs leading-relaxed text-muted-foreground scroll-area-thin">
           {entry.observation || entry.preview || '（无输出）'}
         </pre>
       ) : null}
@@ -177,7 +177,7 @@ export function AgentTab({ project }: { project: Project }) {
     <div className="flex h-full min-h-0 flex-col gap-2.5">
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-card/40 px-3 py-2">
         <Bot className="h-4 w-4 text-primary" />
-        <span className="text-[12.5px] font-medium">Agent 轨迹</span>
+        <span className="text-sm font-medium">Agent 轨迹</span>
         <Badge variant="muted" className="gap-1">
           <Terminal className="h-2.5 w-2.5" /> {stats.tools} 次工具调用
         </Badge>
@@ -213,11 +213,11 @@ export function AgentTab({ project }: { project: Project }) {
           <EntryRow key={entry.id} entry={entry} />
         ))}
         {visible.length === 0 ? (
-          <p className="py-8 text-center text-[12.5px] text-muted-foreground">当前筛选下没有内容</p>
+          <p className="py-8 text-center text-sm text-muted-foreground">当前筛选下没有内容</p>
         ) : null}
       </div>
 
-      <p className="shrink-0 px-1 text-[11.5px] text-muted-foreground/60">
+      <p className="shrink-0 px-1 text-2xs text-muted-foreground/60">
         Agent 模式在「设置 → Agent 模式」里开关与调参；关闭命令执行后只会改代码、不跑验证。
       </p>
     </div>
