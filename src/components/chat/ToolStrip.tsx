@@ -46,7 +46,7 @@ export function ToolStrip({ calls }: { calls: ChatToolCall[] }) {
             <button
               onClick={() => setOpenId(open ? null : call.id)}
               className={cn(
-                'flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors',
+                'flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] transition-colors',
                 call.ok
                   ? 'border-border/70 bg-card/60 text-muted-foreground hover:text-foreground'
                   : 'border-destructive/40 bg-destructive/[0.06] text-destructive',
@@ -55,10 +55,10 @@ export function ToolStrip({ calls }: { calls: ChatToolCall[] }) {
               {call.ok ? <Icon className="h-3 w-3 shrink-0" /> : <CircleAlert className="h-3 w-3 shrink-0" />}
               <span className="shrink-0 font-medium">{call.tool}</span>
               {hintOf(call) ? (
-                <span className="truncate font-mono text-[10.5px] text-muted-foreground/70">{hintOf(call)}</span>
+                <span className="truncate font-mono text-[12px] text-muted-foreground/70">{hintOf(call)}</span>
               ) : null}
               {call.durationMs ? (
-                <span className="tabular shrink-0 text-[10px] text-muted-foreground/50">{call.durationMs}ms</span>
+                <span className="tabular shrink-0 text-[11.5px] text-muted-foreground/50">{call.durationMs}ms</span>
               ) : null}
               {call.observation ? (
                 <ChevronDown className={cn('h-3 w-3 shrink-0 transition-transform', !open && '-rotate-90')} />
@@ -81,15 +81,15 @@ export function PlanBlock({ steps }: { steps: Array<{ title: string; status: str
   if (!steps.length) return null
   return (
     <div className="mb-3 rounded-xl border border-border/60 bg-[hsl(var(--surface-1)/0.5)] px-3 py-2">
-      <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] font-medium text-muted-foreground">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[12.5px] font-medium text-muted-foreground">
         <ListChecks className="h-3.5 w-3.5 text-primary/80" /> 任务清单
       </div>
       <ul className="space-y-1">
         {steps.map((step, index) => (
-          <li key={index} className="flex items-start gap-2 text-[12px]">
+          <li key={index} className="flex items-start gap-2 text-[12.5px]">
             <span
               className={cn(
-                'mt-[3px] grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border text-[9px]',
+                'mt-[3px] grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border text-[11.5px]',
                 step.status === 'done'
                   ? 'border-[hsl(var(--success))]/60 bg-[hsl(var(--success))]/15 text-[hsl(var(--success))]'
                   : step.status === 'in_progress'

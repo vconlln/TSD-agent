@@ -154,7 +154,7 @@ export function PatchView({
   const tokens = useRowTokens(visibleRows, language, resolvedHighlight, dark)
 
   if (!patch.trim()) {
-    return <div className="px-4 py-6 text-center text-[12px] text-muted-foreground">没有可显示的差异内容</div>
+    return <div className="px-4 py-6 text-center text-[12.5px] text-muted-foreground">没有可显示的差异内容</div>
   }
 
   return (
@@ -184,7 +184,7 @@ export function PatchView({
         ))}
         {limited ? (
           <div className="flex items-center justify-center gap-2 border-t border-border/60 bg-muted/30 px-3 py-2">
-            <span className="text-[11px] text-muted-foreground">
+            <span className="text-[12px] text-muted-foreground">
               差异较大，已折叠 {flatRows.length - maxRows} 行
             </span>
             <Button size="xs" variant="secondary" onClick={() => setExpanded(true)}>

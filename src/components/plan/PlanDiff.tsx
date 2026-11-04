@@ -28,7 +28,7 @@ function SectionCard({ section }: { section: PlanSectionDiff }) {
 
   if (section.status === 'unchanged') {
     return (
-      <div className="flex items-center gap-2 rounded-lg border border-border/50 px-3 py-1.5 text-[11.5px] text-muted-foreground/60">
+      <div className="flex items-center gap-2 rounded-lg border border-border/50 px-3 py-1.5 text-[12.5px] text-muted-foreground/60">
         <Equal className="h-3 w-3" />
         <span className="truncate">{section.heading}</span>
         <span className="ml-auto shrink-0">未变更</span>
@@ -41,11 +41,11 @@ function SectionCard({ section }: { section: PlanSectionDiff }) {
       <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center gap-2 px-3 py-2 text-left">
         <ChevronDown className={cn('h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform', !open && '-rotate-90')} />
         <meta.icon className={cn('h-3.5 w-3.5 shrink-0', meta.cls)} />
-        <span className="truncate text-[12.5px] font-medium text-foreground">{section.heading}</span>
+        <span className="truncate text-[13px] font-medium text-foreground">{section.heading}</span>
         <Badge variant="outline" className={cn('shrink-0', meta.cls)}>
           {meta.label}
         </Badge>
-        <span className="ml-auto shrink-0 text-[10.5px] tabular text-muted-foreground/60">{changedLines} 行变更</span>
+        <span className="ml-auto shrink-0 text-[12px] tabular text-muted-foreground/60">{changedLines} 行变更</span>
       </button>
       {open ? (
         <div className="border-t border-border/50 bg-background/25">
@@ -109,7 +109,7 @@ export function PlanDiff({
       </div>
 
       {visible.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border/80 px-4 py-10 text-center text-[12px] text-muted-foreground">
+        <div className="rounded-xl border border-dashed border-border/80 px-4 py-10 text-center text-[12.5px] text-muted-foreground">
           方案暂无差异。生成升级方案后，这里会按章节展示新增、修改与删除内容。
         </div>
       ) : (

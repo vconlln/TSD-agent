@@ -38,11 +38,11 @@ export class ErrorBoundary extends Component<Props, State> {
             <AlertTriangle className="h-5 w-5" />
           </div>
           <h2 className="text-[15px] font-semibold tracking-tight">这个页面加载失败了</h2>
-          <p className="mx-auto mt-2 max-w-sm text-[12.5px] leading-relaxed text-muted-foreground">
+          <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
             {error.message || '页面渲染时发生未知错误'}。可以重试，或者回到工作台继续其他操作。
           </p>
           {info ? (
-            <pre className="mt-3 max-h-28 overflow-auto rounded-lg border border-border/70 bg-muted/40 p-2 text-left font-mono text-[10px] leading-relaxed text-muted-foreground scroll-area-thin">
+            <pre className="mt-3 max-h-28 overflow-auto rounded-lg border border-border/70 bg-muted/40 p-2 text-left font-mono text-[11.5px] leading-relaxed text-muted-foreground scroll-area-thin">
               {info}
             </pre>
           ) : null}

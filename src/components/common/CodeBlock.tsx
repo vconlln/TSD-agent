@@ -76,9 +76,9 @@ export function CodeBlock({
         <div className="flex items-center justify-between gap-2 border-b border-border/70 bg-card/50 px-2.5 py-1.5">
           <div className="flex min-w-0 items-center gap-2">
             {filename ? (
-              <span className="truncate font-mono text-[11px] text-muted-foreground">{filename}</span>
+              <span className="truncate font-mono text-[12px] text-muted-foreground">{filename}</span>
             ) : (
-              <span className="font-mono text-[10.5px] uppercase tracking-wider text-muted-foreground/60">{resolvedLang}</span>
+              <span className="font-mono text-[12px] text-muted-foreground/60">{resolvedLang}</span>
             )}
           </div>
           <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover/code:opacity-100">

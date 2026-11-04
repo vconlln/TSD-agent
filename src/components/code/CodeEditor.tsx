@@ -197,8 +197,8 @@ export function CodeEditor({
     return (
       <div className={cn('flex h-full flex-col items-center justify-center gap-2 px-6 text-center', className)}>
         <AlertCircle className="h-5 w-5 text-muted-foreground" />
-        <p className="text-[12.5px] font-medium">无法打开文件</p>
-        <p className="max-w-sm text-[11.5px] text-muted-foreground">{error}</p>
+        <p className="text-[13px] font-medium">无法打开文件</p>
+        <p className="max-w-sm text-[12.5px] text-muted-foreground">{error}</p>
       </div>
     )
   }
@@ -207,20 +207,20 @@ export function CodeEditor({
     <div className={cn('flex min-h-0 flex-col', className)}>
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border/60 px-3 py-1.5">
         <FileCode2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
-        <span className="truncate font-mono text-[11.5px] text-foreground/85">{path}</span>
+        <span className="truncate font-mono text-[12.5px] text-foreground/85">{path}</span>
         <Badge variant="muted" style={{ color: lang.color }}>
           {lang.label}
         </Badge>
         {readOnly ? (
-          <Badge variant="outline" className="gap-1 text-[9.5px]">
+          <Badge variant="outline" className="gap-1 text-[11.5px]">
             <Lock className="h-2.5 w-2.5" /> 原版只读
           </Badge>
         ) : dirty ? (
-          <Badge variant="warning" className="gap-1 text-[9.5px]">
+          <Badge variant="warning" className="gap-1 text-[11.5px]">
             <span className="h-1.5 w-1.5 rounded-full bg-current" /> 未保存
           </Badge>
         ) : null}
-        <span className="hidden text-[10.5px] tabular text-muted-foreground/60 sm:inline">{formatBytes(size)}</span>
+        <span className="hidden text-[12px] tabular text-muted-foreground/60 sm:inline">{formatBytes(size)}</span>
 
         <div className="ml-auto flex items-center gap-1">
           {!readOnly ? (
@@ -262,7 +262,7 @@ export function CodeEditor({
       <div className="relative min-h-0 flex-1">
         <Suspense
           fallback={
-            <div className="flex h-full items-center justify-center gap-2 text-[12px] text-muted-foreground">
+            <div className="flex h-full items-center justify-center gap-2 text-[12.5px] text-muted-foreground">
               <Spinner size={14} /> 正在加载编辑器…
             </div>
           }
@@ -287,17 +287,17 @@ export function CodeEditor({
           >
             <button
               onClick={() => setInstructionOpen(true)}
-              className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[10.5px] text-foreground hover:bg-accent"
+              className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-foreground hover:bg-accent"
             >
               <Wand2 className="h-3 w-3 text-primary" /> 修改
             </button>
             <button
               onClick={() => void runExplain()}
-              className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[10.5px] text-foreground hover:bg-accent"
+              className="flex items-center gap-1 rounded-md px-1.5 py-1 text-[12px] text-foreground hover:bg-accent"
             >
               <Bot className="h-3 w-3" /> 解释
             </button>
-            <span className="px-1 text-[9.5px] text-muted-foreground/60">
+            <span className="px-1 text-[11.5px] text-muted-foreground/60">
               {selection.startLine}-{selection.endLine} 行
             </span>
           </div>
@@ -307,9 +307,9 @@ export function CodeEditor({
           <div className="absolute inset-y-0 right-0 z-30 flex w-[min(92%,380px)] flex-col border-l border-border bg-popover/97 shadow-float backdrop-blur-xl">
             <div className="flex items-center gap-2 border-b border-border/60 px-3 py-2">
               <Bot className="h-3.5 w-3.5 text-primary" />
-              <span className="text-[12px] font-medium">AI 解释</span>
+              <span className="text-[12.5px] font-medium">AI 解释</span>
               {explain?.mode ? (
-                <Badge variant={explain.mode === 'llm' ? 'success' : 'warning'} className="text-[9px]">
+                <Badge variant={explain.mode === 'llm' ? 'success' : 'warning'} className="text-[11.5px]">
                   {explain.mode === 'llm' ? explain.model || '模型' : '离线分析'}
                 </Badge>
               ) : null}
@@ -322,7 +322,7 @@ export function CodeEditor({
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2 scroll-area-thin">
               {explainLoading ? (
-                <div className="flex items-center gap-2 py-6 text-[11.5px] text-muted-foreground">
+                <div className="flex items-center gap-2 py-6 text-[12.5px] text-muted-foreground">
                   <Spinner size={12} /> 正在分析代码…
                 </div>
               ) : explain ? (
@@ -349,7 +349,7 @@ export function CodeEditor({
                 <button
                   key={preset}
                   onClick={() => setInstruction((prev) => (prev ? `${prev}\n${preset}` : preset))}
-                  className="rounded-full border border-border/70 bg-card/40 px-2 py-0.5 text-[10.5px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                  className="rounded-full border border-border/70 bg-card/40 px-2 py-0.5 text-[12px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
                 >
                   + {preset}
                 </button>
@@ -364,10 +364,10 @@ export function CodeEditor({
               }}
               rows={4}
               placeholder="描述要做的修改，例如：把这段校验抽成独立函数并补充注释…"
-              className="w-full resize-none rounded-lg border border-input bg-background/50 px-3 py-2 text-[12.5px] outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
+              className="w-full resize-none rounded-lg border border-input bg-background/50 px-3 py-2 text-[13px] outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/15"
             />
             {selection ? (
-              <div className="max-h-28 overflow-auto rounded-lg border border-border/60 bg-muted/30 p-2 font-mono text-[10.5px] leading-relaxed text-muted-foreground scroll-area-thin">
+              <div className="max-h-28 overflow-auto rounded-lg border border-border/60 bg-muted/30 p-2 font-mono text-[12px] leading-relaxed text-muted-foreground scroll-area-thin">
                 {selection.text.slice(0, 600)}
                 {selection.text.length > 600 ? '…' : ''}
               </div>
@@ -402,18 +402,18 @@ export function CodeEditor({
               <Badge variant="muted" className="font-mono">
                 {path}
               </Badge>
-              <span className="text-[11px] text-[hsl(var(--diff-add))]">+{editResult?.additions ?? 0}</span>
-              <span className="text-[11px] text-[hsl(var(--diff-del))]">-{editResult?.deletions ?? 0}</span>
-              {editResult?.model ? <Badge variant="outline" className="text-[9.5px]">{editResult.model}</Badge> : null}
+              <span className="text-[12px] text-[hsl(var(--diff-add))]">+{editResult?.additions ?? 0}</span>
+              <span className="text-[12px] text-[hsl(var(--diff-del))]">-{editResult?.deletions ?? 0}</span>
+              {editResult?.model ? <Badge variant="outline" className="text-[11.5px]">{editResult.model}</Badge> : null}
               {editResult?.scope === 'selection' ? (
-                <Badge variant="outline" className="text-[9.5px]">
+                <Badge variant="outline" className="text-[11.5px]">
                   替换第 {editResult.startLine}-{editResult.endLine} 行
                 </Badge>
               ) : (
-                <Badge variant="outline" className="text-[9.5px]">整文件重写</Badge>
+                <Badge variant="outline" className="text-[11.5px]">整文件重写</Badge>
               )}
               {editResult?.rationale ? (
-                <span className="text-[10.5px] text-muted-foreground">{editResult.rationale}</span>
+                <span className="text-[12px] text-muted-foreground">{editResult.rationale}</span>
               ) : null}
             </div>
             <div className="h-[62vh] overflow-hidden rounded-lg border border-border/70 bg-background/40">
@@ -430,7 +430,7 @@ export function CodeEditor({
             </div>
           </div>
           <div className="flex items-center justify-between gap-2 border-t border-border/70 px-5 py-3">
-            <span className="text-[10.5px] text-muted-foreground/70">
+            <span className="text-[12px] text-muted-foreground/70">
               接受后写入磁盘，可继续用 Git 面板提交
             </span>
             <div className="flex items-center gap-2">

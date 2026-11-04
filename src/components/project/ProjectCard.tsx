@@ -28,7 +28,7 @@ export function ProjectCard({ project, onDelete }: { project: Project; onDelete?
       />
       <div className="flex items-start gap-2.5">
         <div
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 text-[11px] font-semibold"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/10 text-[12px] font-semibold"
           style={{
             background: `linear-gradient(135deg, hsl(${hue} 70% 55% / 0.32), hsl(${(hue + 40) % 360} 70% 55% / 0.14))`,
             color: `hsl(${hue} 85% 80%)`,
@@ -43,7 +43,7 @@ export function ProjectCard({ project, onDelete }: { project: Project; onDelete?
             </Link>
             {statusBadge(project)}
           </div>
-          <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground/70">
+          <p className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted-foreground/70">
             <FolderGit2 className="h-3 w-3" />
             <span className="truncate">{project.sourceUrl || '本地目录'}</span>
           </p>
@@ -77,7 +77,7 @@ export function ProjectCard({ project, onDelete }: { project: Project; onDelete?
       </div>
 
       {project.stats ? (
-        <div className="mt-2.5 flex items-center gap-3 text-[10.5px] tabular text-muted-foreground/70">
+        <div className="mt-2.5 flex items-center gap-3 text-[12px] tabular text-muted-foreground/70">
           <span className="flex items-center gap-1">
             <FileCode2 className="h-3 w-3" /> {project.stats.filesChanged ?? project.stats.files ?? 0} 个文件
           </span>
@@ -87,7 +87,7 @@ export function ProjectCard({ project, onDelete }: { project: Project; onDelete?
       ) : null}
 
       <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-2.5">
-        <span className="flex items-center gap-1 text-[10.5px] text-muted-foreground/60">
+        <span className="flex items-center gap-1 text-[12px] text-muted-foreground/60">
           <Clock className="h-3 w-3" /> {formatRelative(project.updatedAt)}
         </span>
         <Link to={`/project/${project.id}`}>

@@ -150,11 +150,11 @@ export function PlanTab({
               {view === 'update' && changedSections.length ? (
                 <div className="mb-4 flex flex-wrap items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/[0.05] px-2.5 py-1.5">
                   <Sparkles className="h-3 w-3 text-primary" />
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-[12px] text-muted-foreground">
                     本次升级共变更 {changedSections.length} 个章节
                   </span>
                   {changedSections.slice(0, 4).map((s) => (
-                    <span key={s.key} className="rounded bg-background/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                    <span key={s.key} className="rounded bg-background/50 px-1.5 py-0.5 text-[11.5px] text-muted-foreground">
                       {s.heading}
                     </span>
                   ))}

@@ -23,60 +23,108 @@ self.MonacoEnvironment = {
 const DARK_THEME = 'tsd-dark'
 const LIGHT_THEME = 'tsd-light'
 
-monaco.editor.defineTheme(DARK_THEME, {
-  base: 'vs-dark',
-  inherit: true,
-  rules: [
-    { token: 'comment', foreground: '6b7280', fontStyle: 'italic' },
-    { token: 'keyword', foreground: 'c084fc' },
-    { token: 'string', foreground: '86efac' },
-    { token: 'number', foreground: 'fbbf24' },
-    { token: 'type', foreground: '7dd3fc' },
-    { token: 'function', foreground: 'a5b4fc' },
-  ],
-  colors: {
-    'editor.background': '#0b0d15',
-    'editor.foreground': '#e5e9f5',
-    'editorLineNumber.foreground': '#3f4658',
-    'editorLineNumber.activeForeground': '#8b93a7',
-    'editor.selectionBackground': '#7c5cff40',
-    'editor.inactiveSelectionBackground': '#7c5cff22',
-    'editor.lineHighlightBackground': '#ffffff08',
-    'editorCursor.foreground': '#a78bfa',
-    'editorIndentGuide.background1': '#ffffff0f',
-    'editorWidget.background': '#12151f',
-    'editorWidget.border': '#252a38',
-    'editorSuggestWidget.background': '#12151f',
-    'editorSuggestWidget.selectedBackground': '#7c5cff26',
-    'scrollbarSlider.background': '#ffffff14',
-    'scrollbarSlider.hoverBackground': '#ffffff24',
-    'editorGutter.background': '#0b0d15',
-    'editorOverviewRuler.border': '#00000000',
-    'diffEditor.insertedTextBackground': '#22c55e22',
-    'diffEditor.removedTextBackground': '#ef444426',
-    'diffEditor.insertedLineBackground': '#22c55e14',
-    'diffEditor.removedLineBackground': '#ef444414',
-  },
-})
+// 主题色全部从 CSS 变量读：切主题时编辑器跟着变，不再是写死的紫色
+function tokenTriple(name: string): [number, number, number] | null {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+  const parts = raw.split(/\s+/)
+  if (parts.length < 3) return null
+  const h = parseFloat(parts[0])
+  const sat = parseFloat(parts[1])
+  const light = parseFloat(parts[2])
+  if ([h, sat, light].some((n) => Number.isNaN(n))) return null
+  return [h, sat, light]
+}
 
-monaco.editor.defineTheme(LIGHT_THEME, {
-  base: 'vs',
-  inherit: true,
-  rules: [{ token: 'comment', foreground: '8a94a6', fontStyle: 'italic' }],
-  colors: {
-    'editor.background': '#ffffff',
-    'editor.foreground': '#1f2430',
-    'editorLineNumber.foreground': '#b9c0cd',
-    'editor.lineHighlightBackground': '#f4f6fb',
-    'editor.selectionBackground': '#0ea5e933',
-    'editorWidget.background': '#ffffff',
-    'editorWidget.border': '#e2e6ee',
-    'diffEditor.insertedLineBackground': '#22c55e12',
-    'diffEditor.removedLineBackground': '#ef444412',
-  },
-})
+/** Monaco 只认 hex / rgb() / rgba()：把 token 的 HSL 三件套换算过去 */
+function hslToRgb(h: number, sat: number, light: number): [number, number, number] {
+  const s = sat / 100
+  const l = light / 100
+  const k = (n: number) => (n + h / 30) % 12
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)))))
+  return [f(0), f(8), f(4)]
+}
 
-export const editorTheme = (mode: 'dark' | 'light') => (mode === 'dark' ? DARK_THEME : LIGHT_THEME)
+function cssColor(name: string, alpha?: number): string {
+  const triple = tokenTriple(name)
+  if (!triple) return alpha === undefined ? '#888888' : 'rgba(136, 136, 136, ' + alpha + ')'
+  const rgb = hslToRgb(...triple)
+  if (alpha === undefined) {
+    return '#' + rgb.map((v) => v.toString(16).padStart(2, '0')).join('')
+  }
+  return 'rgba(' + rgb[0] + ', ' + rgb[1] + ', ' + rgb[2] + ', ' + alpha + ')'
+}
+
+/** 语法着色规则只接受 6 位 hex（不带 #） */
+function cssHex(name: string): string {
+  return cssColor(name).replace('#', '')
+}
+
+function defineThemes(): void {
+  const ink = cssColor('--foreground')
+  monaco.editor.defineTheme(DARK_THEME, {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: cssHex('--muted-foreground'), fontStyle: 'italic' },
+      { token: 'keyword', foreground: cssHex('--primary') },
+      { token: 'string', foreground: cssHex('--success') },
+      { token: 'number', foreground: cssHex('--warning') },
+      { token: 'type', foreground: cssHex('--info') },
+      { token: 'function', foreground: cssHex('--primary') },
+    ],
+    colors: {
+      'editor.background': cssColor('--background'),
+      'editor.foreground': ink,
+      'editorLineNumber.foreground': cssColor('--muted-foreground', 0.45),
+      'editorLineNumber.activeForeground': cssColor('--muted-foreground'),
+      'editor.selectionBackground': cssColor('--primary', 0.22),
+      'editor.inactiveSelectionBackground': cssColor('--primary', 0.12),
+      'editor.lineHighlightBackground': cssColor('--foreground', 0.03),
+      'editorCursor.foreground': cssColor('--primary'),
+      'editorIndentGuide.background1': cssColor('--border'),
+      'editorWidget.background': cssColor('--popover'),
+      'editorWidget.border': cssColor('--border'),
+      'editorSuggestWidget.background': cssColor('--popover'),
+      'editorSuggestWidget.selectedBackground': cssColor('--primary', 0.16),
+      'scrollbarSlider.background': cssColor('--foreground', 0.08),
+      'scrollbarSlider.hoverBackground': cssColor('--foreground', 0.14),
+      'editorGutter.background': cssColor('--background'),
+      'editorOverviewRuler.border': cssColor('--border'),
+      'diffEditor.insertedTextBackground': cssColor('--diff-add', 0.16),
+      'diffEditor.removedTextBackground': cssColor('--diff-del', 0.16),
+      'diffEditor.insertedLineBackground': cssColor('--diff-add', 0.09),
+      'diffEditor.removedLineBackground': cssColor('--diff-del', 0.09),
+    },
+  })
+
+  monaco.editor.defineTheme(LIGHT_THEME, {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: cssHex('--muted-foreground'), fontStyle: 'italic' },
+      { token: 'keyword', foreground: cssHex('--primary') },
+      { token: 'string', foreground: cssHex('--success') },
+      { token: 'number', foreground: cssHex('--warning') },
+    ],
+    colors: {
+      'editor.background': cssColor('--card'),
+      'editor.foreground': ink,
+      'editorLineNumber.foreground': cssColor('--muted-foreground', 0.55),
+      'editor.lineHighlightBackground': cssColor('--foreground', 0.035),
+      'editor.selectionBackground': cssColor('--primary', 0.18),
+      'editorWidget.background': cssColor('--popover'),
+      'editorWidget.border': cssColor('--border'),
+      'diffEditor.insertedLineBackground': cssColor('--diff-add', 0.08),
+      'diffEditor.removedLineBackground': cssColor('--diff-del', 0.08),
+    },
+  })
+}
+
+export const editorTheme = (mode: 'dark' | 'light') => {
+  defineThemes()
+  return mode === 'dark' ? DARK_THEME : LIGHT_THEME
+}
 
 const LANGUAGE_BY_EXT: Record<string, string> = {
   ts: 'typescript',

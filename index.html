@@ -4,19 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' http: https: ws: wss:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; script-src 'self'; worker-src 'self' blob:" />
-    <title>TSD Agent</title>
+    <title>TSD Agent：项目方案升级工作台</title>
+    <meta name="description" content="把项目方案升级做成流水线：解析方案页面、下载代码、生成 UPDATE.md、升级代码并给出可视化差异。" />
     <style>
+      /* Hallmark · built: TSD Agent · redesign: restyle · scope: app */
       html, body, #root { height: 100%; margin: 0; }
-      body { background: #08090f; }
-      .boot-splash { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(1200px 600px at 50% 0%, #171a2b, #08090f 70%); color: #cbd5ff; font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
-      .boot-splash .ring { width: 46px; height: 46px; border-radius: 999px; border: 2px solid rgba(124,92,255,.2); border-top-color: #7c5cff; animation: spin .9s linear infinite; margin: 0 auto 16px; }
+      html, body { overflow-x: clip; }
+      body { background: var(--boot-bg); }
+      /* 启动闪屏：颜色走同一套 token，避免外圈一层「紫色科技感」*/
+      :root { --boot-bg: hsl(224 18% 6%); --boot-ink: hsl(220 14% 92%); --boot-line: hsl(224 10% 18%); --boot-accent: hsl(38 66% 60%); }
+      .boot-splash { position: fixed; inset: 0; display: grid; place-items: center; background: var(--boot-bg); color: var(--boot-ink); }
+      .boot-splash .ring { width: 34px; height: 34px; border-radius: 999px; border: 2px solid var(--boot-line); border-top-color: var(--boot-accent); animation: spin .8s cubic-bezier(.22,1,.36,1) infinite; margin: 0 auto 16px; }
       @keyframes spin { to { transform: rotate(360deg); } }
-      .boot-splash p { font-size: 13px; letter-spacing: .08em; opacity: .7; }
+      @media (prefers-reduced-motion: reduce) { .boot-splash .ring { animation: none; } }
+      .boot-splash p { font-size: 13px; opacity: .72; }
     </style>
   </head>
   <body>
     <div id="root">
-      <div class="boot-splash"><div><div class="ring"></div><p>TSD AGENT 正在启动…</p></div></div>
+      <div class="boot-splash"><div><div class="ring"></div><p>正在启动本地引擎…</p></div></div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

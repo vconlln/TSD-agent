@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PanelRightClose, PanelRightOpen, Play, Sparkles, Timer, Zap } from 'lucide-react'
+import { Bot, PanelRightClose, PanelRightOpen, Play, Sparkles, Timer, Zap } from 'lucide-react'
 import { cn, formatDuration } from '@/lib/utils'
 import type { Project } from '../../../shared/types'
 import { useSessionStore, currentRun, isRunActive, elapsed } from '@/stores/session'
@@ -37,12 +37,16 @@ export function AgentDock({
           </button>
         </Tooltip>
         <div className="h-px w-5 bg-border" />
-        <div className="flex flex-col items-center gap-1 writing-vertical">
-          <span className="text-[10px] tracking-[0.2em] text-muted-foreground/50 [writing-mode:vertical-rl]">AGENT</span>
-        </div>
-        {active ? (
-          <span className="mt-auto mb-2 h-1.5 w-1.5 animate-pulse rounded-full bg-primary" />
-        ) : null}
+        {/* 竖排装饰字不是信息（gate 66）：状态改用工具提示与图标明暗表达 */}
+        <Tooltip content={active ? 'Agent 运行中' : '展开 Agent 控制台'} side="left">
+          <button
+            onClick={() => setCollapsed(false)}
+            className="grid h-7 w-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            aria-label={active ? 'Agent 运行中' : '展开 Agent 控制台'}
+          >
+            <Bot className={active ? 'h-4 w-4 text-primary' : 'h-4 w-4'} />
+          </button>
+        </Tooltip>
       </div>
     )
   }
@@ -50,10 +54,10 @@ export function AgentDock({
   return (
     <div className={cn('flex w-[320px] shrink-0 flex-col border-l border-border/60 bg-[hsl(var(--sidebar)/0.42)] backdrop-blur-xl', className)}>
       <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-3 py-2">
-        <span className="grid h-6 w-6 place-items-center rounded-lg bg-accent-grad text-primary-foreground">
+        <span className="grid h-6 w-6 place-items-center rounded-lg bg-primary text-primary-foreground">
           <Sparkles className="h-3 w-3" />
         </span>
-        <span className="text-[12px] font-medium">Agent 控制台</span>
+        <span className="text-[12.5px] font-medium">Agent 控制台</span>
         {active ? (
           <Badge variant="default" className="gap-1">
             <StatusDot tone="running" pulse /> 运行中
@@ -74,7 +78,7 @@ export function AgentDock({
       </div>
 
       <div className="shrink-0 space-y-2 border-b border-border/60 px-3 py-2.5">
-        <div className="flex items-center justify-between text-[10.5px] text-muted-foreground">
+        <div className="flex items-center justify-between text-[12px] text-muted-foreground">
           <span className="flex items-center gap-1">
             <Timer className="h-3 w-3" /> {run ? formatDuration(elapsed(run)) : '—'}
           </span>
@@ -87,7 +91,7 @@ export function AgentDock({
           <Button
             size="sm"
             variant={active ? 'secondary' : 'primary'}
-            className="h-7 flex-1 gap-1.5 text-[11.5px]"
+            className="h-7 flex-1 gap-1.5 text-[12.5px]"
             onClick={active ? () => void cancel(project.id) : onStart}
           >
             {active ? (
@@ -99,13 +103,13 @@ export function AgentDock({
             )}
           </Button>
           <Tooltip content="查看用量">
-            <div className="flex h-7 items-center gap-1 rounded-md border border-border/70 px-1.5 text-[10px] tabular text-muted-foreground">
+            <div className="flex h-7 items-center gap-1 rounded-md border border-border/70 px-1.5 text-[11.5px] tabular text-muted-foreground">
               <Zap className="h-2.5 w-2.5" />
               {run?.usage?.outputTokens ? `${Math.round(run.usage.outputTokens / 1000)}k` : '—'}
             </div>
           </Tooltip>
         </div>
-        {run?.model ? <p className="truncate text-[10px] text-muted-foreground/50">模型 · {run.model}</p> : null}
+        {run?.model ? <p className="truncate text-[11.5px] text-muted-foreground/50">模型 · {run.model}</p> : null}
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 py-2 scroll-area-thin">

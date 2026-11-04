@@ -8,12 +8,12 @@ import { cn } from '@/lib/utils'
 /* ------------------------------- Button ------------------------------- */
 
 const buttonVariants = cva(
-  'relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg text-[13px] font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 active:translate-y-[0.5px]',
+  'relative inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg text-[13.5px] font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-offset-1 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-45 active:translate-y-[0.5px]',
   {
     variants: {
       variant: {
         primary:
-          'bg-accent-grad text-primary-foreground shadow-[0_1px_0_0_rgba(255,255,255,0.22)_inset,0_8px_24px_-12px_hsl(var(--primary)/0.9)] hover:brightness-[1.07] hover:shadow-[0_1px_0_0_rgba(255,255,255,0.26)_inset,0_10px_28px_-10px_hsl(var(--primary)/0.95)]',
+          'bg-primary text-primary-foreground shadow-[var(--shadow-raised)] hover:brightness-[1.06]',
         secondary:
           'border border-border bg-secondary text-secondary-foreground hover:border-border hover:bg-accent hover:text-accent-foreground',
         outline:
@@ -24,8 +24,8 @@ const buttonVariants = cva(
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
-        xs: 'h-7 gap-1.5 rounded-md px-2 text-[11.5px]',
-        sm: 'h-8 px-3 text-[12.5px]',
+        xs: 'h-7 gap-1.5 rounded-md px-2 text-[12.5px]',
+        sm: 'h-8 px-3 text-[13px]',
         md: 'h-9 px-3.5',
         lg: 'h-11 rounded-xl px-5 text-[14px]',
         icon: 'h-9 w-9',
@@ -93,7 +93,7 @@ Button.displayName = 'Button'
 /* ------------------------------- Badge -------------------------------- */
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10.5px] font-medium leading-4 tracking-wide tabular',
+  'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[12px] font-medium leading-4 tabular',
   {
     variants: {
       variant: {
@@ -104,7 +104,7 @@ const badgeVariants = cva(
         warning: 'border-[hsl(var(--warning)/0.3)] bg-[hsl(var(--warning)/0.12)] text-[hsl(var(--warning))]',
         danger: 'border-[hsl(var(--destructive)/0.3)] bg-[hsl(var(--destructive)/0.12)] text-[hsl(var(--destructive))]',
         info: 'border-[hsl(var(--info)/0.3)] bg-[hsl(var(--info)/0.12)] text-[hsl(var(--info))]',
-        gradient: 'border-primary/30 bg-accent-grad text-primary-foreground shadow-[0_2px_10px_-4px_hsl(var(--primary)/0.8)]',
+        gradient: 'border-primary/30 bg-primary text-primary-foreground',
       },
     },
     defaultVariants: { variant: 'default' },
@@ -126,7 +126,7 @@ export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttribute
     <input
       ref={ref}
       className={cn(
-        'flex h-9 w-full rounded-lg border border-input bg-background/45 px-3 py-1.5 text-[13px] text-foreground shadow-[0_1px_0_0_hsl(var(--foreground)/0.03)_inset] outline-none transition-colors',
+        'flex h-9 w-full rounded-lg border border-input bg-background/45 px-3 py-1.5 text-[13.5px] text-foreground shadow-[0_1px_0_0_hsl(var(--foreground)/0.03)_inset] outline-none transition-colors',
         'placeholder:text-muted-foreground/60 hover:border-border focus:border-primary/50 focus:bg-background/70 focus:ring-2 focus:ring-primary/15',
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,
@@ -142,7 +142,7 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
     <textarea
       ref={ref}
       className={cn(
-        'flex min-h-[80px] w-full resize-none rounded-lg border border-input bg-background/45 px-3 py-2 text-[13px] leading-relaxed text-foreground outline-none transition-colors',
+        'flex min-h-[80px] w-full resize-none rounded-lg border border-input bg-background/45 px-3 py-2 text-[13.5px] leading-relaxed text-foreground outline-none transition-colors',
         'placeholder:text-muted-foreground/60 hover:border-border focus:border-primary/50 focus:bg-background/70 focus:ring-2 focus:ring-primary/15',
         'disabled:cursor-not-allowed disabled:opacity-50',
         className,
@@ -156,7 +156,7 @@ Textarea.displayName = 'Textarea'
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={cn('text-[11.5px] font-medium uppercase tracking-[0.06em] text-muted-foreground', className)}
+      className={cn('text-[12.5px] font-medium text-muted-foreground', className)}
       {...props}
     />
   )
@@ -179,7 +179,7 @@ export function Field({
     <div className={cn('space-y-2', className)}>
       <div className="flex items-baseline justify-between gap-3">
         <Label htmlFor={htmlFor}>{label}</Label>
-        {hint ? <span className="text-[11px] text-muted-foreground/70">{hint}</span> : null}
+        {hint ? <span className="text-[12px] text-muted-foreground/70">{hint}</span> : null}
       </div>
       {children}
     </div>
@@ -225,12 +225,13 @@ export function ProgressBar({
         ? 'bg-[hsl(var(--warning))]'
         : tone === 'danger'
           ? 'bg-destructive'
-          : 'bg-accent-grad'
+          : 'bg-primary'
   return (
     <div className={cn('relative h-1.5 w-full overflow-hidden rounded-full bg-muted', className)}>
+      {/* 用 transform 而不是 width：动画不触发重排（gate 10a） */}
       <div
-        className={cn('h-full rounded-full transition-[width] duration-500 ease-spring', toneCls, indeterminate && 'shimmer-line w-1/2')}
-        style={indeterminate ? undefined : { width: `${pct}%` }}
+        className={cn('h-full w-full origin-left rounded-full transition-transform duration-500 ease-out', toneCls, indeterminate && 'shimmer-line w-1/2')}
+        style={indeterminate ? undefined : { transform: 'scaleX(' + pct / 100 + ')' }}
       />
     </div>
   )
@@ -304,16 +305,16 @@ export function Segmented<T extends string>({
             onClick={() => onChange(opt.value)}
             className={cn(
               'relative inline-flex items-center gap-1.5 rounded-[7px] font-medium transition-colors',
-              size === 'sm' ? 'h-6 px-2 text-[11.5px]' : 'h-7 px-2.5 text-[12.5px]',
+              size === 'sm' ? 'h-6 px-2 text-[12.5px]' : 'h-7 px-2.5 text-[13px]',
               active
-                ? 'bg-card text-foreground shadow-[0_1px_0_0_hsl(var(--foreground)/0.06),0_2px_8px_-4px_rgba(0,0,0,0.5)]'
+                ? 'bg-card text-foreground shadow-[var(--shadow-raised)]'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {opt.icon}
             {opt.label}
             {typeof opt.count === 'number' && opt.count > 0 ? (
-              <span className="tabular text-[10px] text-muted-foreground/80">{opt.count}</span>
+              <span className="tabular text-[11.5px] text-muted-foreground/80">{opt.count}</span>
             ) : null}
           </button>
         )
@@ -346,7 +347,7 @@ export function EmptyState({
       ) : null}
       <div className="space-y-1">
         <p className="text-[14px] font-medium text-foreground">{title}</p>
-        {description ? <p className="max-w-sm text-[12.5px] leading-relaxed text-muted-foreground">{description}</p> : null}
+        {description ? <p className="max-w-sm text-[13px] leading-relaxed text-muted-foreground">{description}</p> : null}
       </div>
       {action}
     </div>

@@ -30,31 +30,26 @@ function ProgressRing({ value, active, failed }: { value: number; active: boolea
   const offset = circumference * (1 - Math.min(1, Math.max(0, value / 100)))
   return (
     <div className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="-rotate-90">
-        <defs>
-          <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="hsl(var(--grad-from))" />
-            <stop offset="100%" stopColor="hsl(var(--grad-to))" />
-          </linearGradient>
-        </defs>
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth={stroke} opacity={0.5} />
+      {/* 单色仪表环：层次靠明度，不靠渐变或发光（gate 2a / 29） */}
+      <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="hsl(var(--muted))" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke={failed ? 'hsl(var(--destructive))' : 'url(#ring-grad)'}
+          stroke={failed ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'}
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className={cn('transition-[stroke-dashoffset] duration-700 ease-spring', active && 'drop-shadow-[0_0_6px_hsl(var(--primary)/0.6)]')}
+          className="transition-[stroke-dashoffset] duration-500 ease-out"
         />
       </svg>
       <div className="absolute inset-0 grid place-items-center">
         <div className="text-center">
-          <div className="stat-num text-[19px] font-semibold leading-none">{Math.round(value)}%</div>
-          <div className="mt-0.5 text-[9.5px] uppercase tracking-[0.1em] text-muted-foreground/60">进度</div>
+          <div className="font-display text-[17px] font-semibold leading-none tabular">{Math.round(value)}%</div>
+          <div className="mt-1 text-[11.5px] text-muted-foreground/70">进度</div>
         </div>
       </div>
     </div>
@@ -96,7 +91,6 @@ export function OverviewTab({
     <div className="h-full overflow-y-auto pr-1 scroll-area-thin">
       <div className="space-y-3">
         <div className="panel grain-border relative overflow-hidden p-4">
-          <div className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-primary/10 blur-3xl" />
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <ProgressRing value={progress} active={active} failed={!!failed} />
             <div className="min-w-0 flex-1">
@@ -121,12 +115,12 @@ export function OverviewTab({
                   </Badge>
                 ) : null}
               </div>
-              <p className="mt-1 line-clamp-2 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
+              <p className="mt-1 line-clamp-2 max-w-2xl text-[12.5px] leading-relaxed text-muted-foreground">
                 {run?.summary ||
                   currentStep?.detail ||
                   'Agent 将依次解析方案网页、下载基础代码、生成 UPDATE.md、升级代码并计算差异。'}
               </p>
-              <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground/75">
+              <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-muted-foreground/75">
                 <span className="flex items-center gap-1">
                   <Timer className="h-3 w-3" /> {run ? formatDuration(elapsed(run)) : '—'}
                 </span>
@@ -170,7 +164,7 @@ export function OverviewTab({
                 { label: '删除行', value: runtime?.diff?.stats.removed ?? 0, tone: 'del' },
               ].map((s) => (
                 <div key={s.label} className="rounded-lg border border-border/60 bg-background/25 px-2 py-1.5">
-                  <div className="text-[9.5px] uppercase tracking-[0.08em] text-muted-foreground/60">{s.label}</div>
+                  <div className="text-[11.5px] text-muted-foreground/60">{s.label}</div>
                   <div
                     className={cn(
                       'stat-num mt-0.5 text-[16px] font-semibold leading-none',
@@ -194,8 +188,8 @@ export function OverviewTab({
           <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/[0.06] px-3 py-2.5">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
             <div className="min-w-0">
-              <p className="text-[12px] font-medium text-destructive">执行失败</p>
-              <p className="mt-0.5 break-words text-[11.5px] leading-relaxed text-muted-foreground">{run.error}</p>
+              <p className="text-[12.5px] font-medium text-destructive">执行失败</p>
+              <p className="mt-0.5 break-words text-[12.5px] leading-relaxed text-muted-foreground">{run.error}</p>
             </div>
           </div>
         ) : null}
@@ -215,7 +209,7 @@ export function OverviewTab({
               <SectionTitle hint="本次升级需求">需求与产物</SectionTitle>
               <div className="mt-2.5 space-y-2">
                 <div className="rounded-lg border border-border/50 bg-background/25 p-2.5">
-                  <p className="line-clamp-4 whitespace-pre-wrap text-[11.5px] leading-relaxed text-foreground/80">
+                  <p className="line-clamp-4 whitespace-pre-wrap text-[12.5px] leading-relaxed text-foreground/80">
                     {run?.prompt || project.description || '尚未提交升级需求'}
                   </p>
                 </div>
@@ -227,8 +221,8 @@ export function OverviewTab({
                       className="group flex w-full items-center gap-2 rounded-md px-1.5 py-1 text-left transition-colors hover:bg-accent/60"
                     >
                       <artifact.icon className={cn('h-3.5 w-3.5 shrink-0', artifact.exists ? 'text-primary/80' : 'text-muted-foreground/40')} />
-                      <span className="shrink-0 text-[11px] text-muted-foreground">{artifact.label}</span>
-                      <span className="truncate font-mono text-[10.5px] text-muted-foreground/60">{artifact.path}</span>
+                      <span className="shrink-0 text-[12px] text-muted-foreground">{artifact.label}</span>
+                      <span className="truncate font-mono text-[12px] text-muted-foreground/60">{artifact.path}</span>
                       <FolderOpen className="ml-auto h-3 w-3 shrink-0 text-muted-foreground/0 transition-colors group-hover:text-muted-foreground/70" />
                     </button>
                   ))}
@@ -240,7 +234,7 @@ export function OverviewTab({
               <SectionTitle hint="最近 5 次">运行历史</SectionTitle>
               <div className="mt-2 space-y-1">
                 {(runtime?.runs ?? []).slice(0, 5).map((r) => (
-                  <div key={r.id} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[11px]">
+                  <div key={r.id} className="flex items-center gap-2 rounded-md px-1.5 py-1 text-[12px]">
                     <StatusDot tone={r.status === 'failed' ? 'danger' : r.status === 'running' ? 'running' : 'success'} />
                     <span className="truncate text-muted-foreground">
                       {r.kind === 'chat' ? '对话修改' : '升级执行'} · {formatRelative(r.startedAt)}
@@ -249,7 +243,7 @@ export function OverviewTab({
                   </div>
                 ))}
                 {!runtime?.runs.length ? (
-                  <p className="px-1.5 py-2 text-[11px] text-muted-foreground/60">还没有运行记录</p>
+                  <p className="px-1.5 py-2 text-[12px] text-muted-foreground/60">还没有运行记录</p>
                 ) : null}
               </div>
             </div>

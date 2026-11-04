@@ -61,7 +61,7 @@ export function StartRunDialog({
         <div className="space-y-4 px-5 py-4">
           <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/[0.06] px-3 py-2">
             <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
-            <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+            <p className="text-[12.5px] leading-relaxed text-muted-foreground">
               流程：解析方案 → 下载代码 → 生成升级方案 → 升级代码 → 计算差异，可在项目页实时查看。
             </p>
           </div>

@@ -4,6 +4,7 @@ import type { HealthInfo } from '../../shared/types'
 import type { BackendStatus } from '../../shared/bridge'
 
 export type ThemeId =
+  | 'ochre'
   | 'violet'
   | 'ocean'
   | 'emerald'
@@ -33,8 +34,10 @@ export interface Appearance {
   diffHighlight: boolean
 }
 
+// 一个主题 = 一个色相。默认赭石：暖色打在冷墨上，是最不像「AI 默认紫」的选择。
 export const THEMES: Array<{ id: ThemeId; name: string; from: string; to: string }> = [
-  { id: 'violet', name: '极光紫', from: 'hsl(258 92% 68%)', to: 'hsl(290 92% 62%)' },
+  { id: 'ochre', name: '赭石', from: 'hsl(38 66% 60%)', to: 'hsl(38 66% 60%)' },
+  { id: 'violet', name: '菫紫', from: 'hsl(268 58% 74%)', to: 'hsl(268 58% 74%)' },
   { id: 'ocean', name: '深海蓝', from: 'hsl(205 96% 58%)', to: 'hsl(168 88% 46%)' },
   { id: 'emerald', name: '翡翠绿', from: 'hsl(158 74% 45%)', to: 'hsl(184 84% 48%)' },
   { id: 'sunset', name: '落日橙', from: 'hsl(22 96% 58%)', to: 'hsl(342 88% 62%)' },
@@ -50,7 +53,7 @@ export const THEMES: Array<{ id: ThemeId; name: string; from: string; to: string
 ]
 
 const DEFAULT_APPEARANCE: Appearance = {
-  theme: 'violet',
+  theme: 'ochre',
   mode: 'dark',
   density: 'cozy',
   effects: 'full',

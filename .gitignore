@@ -28,6 +28,9 @@ workspace/
 *.log
 npm-debug.log*
 
+# Hallmark 设计技能的工作目录（before 记录 / 截图 / 日志）
+.hallmark/
+
 # Chromium 截图时落下的拼写词典
 *.bdic
 

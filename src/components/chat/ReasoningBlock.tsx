@@ -39,7 +39,7 @@ export function ReasoningBlock({
           touched.current = true
           setOpen((value) => !value)
         }}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11.5px] text-muted-foreground transition-colors hover:text-foreground"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12.5px] text-muted-foreground transition-colors hover:text-foreground"
       >
         <Brain className={cn('h-3.5 w-3.5 shrink-0 text-primary/80', streaming && 'animate-pulse')} />
         <span className="font-medium">{label}</span>
@@ -48,7 +48,7 @@ export function ReasoningBlock({
             {[0, 1, 2].map((index) => (
               <span
                 key={index}
-                className="h-1 w-1 animate-bounce rounded-full bg-primary/60"
+                className="h-1 w-1 animate-breathe rounded-full bg-primary/60"
                 style={{ animationDelay: String(index * 120) + 'ms' }}
               />
             ))}

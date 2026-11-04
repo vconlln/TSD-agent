@@ -18,8 +18,8 @@ function OptionRow({
   return (
     <div className="flex items-center justify-between gap-4 py-2">
       <div className="min-w-0">
-        <p className="text-[12.5px] font-medium text-foreground/90">{label}</p>
-        {hint ? <p className="text-[11px] text-muted-foreground/70">{hint}</p> : null}
+        <p className="text-[13px] font-medium text-foreground/90">{label}</p>
+        {hint ? <p className="text-[12px] text-muted-foreground/70">{hint}</p> : null}
       </div>
       {children}
     </div>
@@ -56,7 +56,7 @@ export function ThemePanel() {
             <div className="flex items-center justify-between border-b border-border/70 px-4 py-3">
               <div>
                 <p className="text-[13.5px] font-semibold tracking-tight">外观与布局</p>
-                <p className="text-[11px] text-muted-foreground">所有选项即时生效并自动保存</p>
+                <p className="text-[12px] text-muted-foreground">所有选项即时生效并自动保存</p>
               </div>
               <button
                 onClick={() => setOpen(false)}
@@ -68,7 +68,7 @@ export function ThemePanel() {
 
             <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 scroll-area-thin">
               <section className="space-y-2">
-                <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">明暗模式</p>
+                <p className="text-[12px] font-semibold text-muted-foreground/60">明暗模式</p>
                 <div className="grid grid-cols-2 gap-2">
                   {([
                     { id: 'dark', label: '深色', icon: Moon },
@@ -80,28 +80,28 @@ export function ThemePanel() {
                         key={item.id}
                         onClick={() => setAppearance({ mode: item.id })}
                         className={cn(
-                          'group relative overflow-hidden rounded-xl border p-2.5 text-left transition-all',
+                          'group relative overflow-hidden rounded-xl border p-2.5 text-left transition-colors',
                           active ? 'border-primary/60 bg-primary/[0.08]' : 'border-border/80 hover:border-border hover:bg-accent/40',
                         )}
                       >
                         <div
                           className={cn(
                             'mb-2 h-12 w-full overflow-hidden rounded-lg border',
-                            item.id === 'dark' ? 'border-white/10 bg-[#0b0d15]' : 'border-black/10 bg-[#f6f7fb]',
+                            item.id === 'dark' ? 'border-border bg-background' : 'border-border bg-card',
                           )}
                         >
                           <div className={cn('h-2.5 w-full', item.id === 'dark' ? 'bg-white/[0.06]' : 'bg-black/[0.05]')} />
                           <div className="flex gap-1 p-1.5">
-                            <div className="h-1.5 w-6 rounded-full bg-accent-grad" />
+                            <div className="h-1.5 w-6 rounded-full bg-primary" />
                             <div className={cn('h-1.5 flex-1 rounded-full', item.id === 'dark' ? 'bg-white/10' : 'bg-black/10')} />
                           </div>
                           <div className={cn('mx-1.5 h-1.5 w-2/3 rounded-full', item.id === 'dark' ? 'bg-white/10' : 'bg-black/10')} />
                         </div>
-                        <span className="flex items-center gap-1.5 text-[12px] font-medium">
+                        <span className="flex items-center gap-1.5 text-[12.5px] font-medium">
                           <item.icon className="h-3.5 w-3.5" /> {item.label}
                         </span>
                         {active && (
-                          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" />
+                          <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-primary" />
                         )}
                       </button>
                     )
@@ -111,7 +111,7 @@ export function ThemePanel() {
 
               <section className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">主题色</p>
+                  <p className="text-[12px] font-semibold text-muted-foreground/60">主题色</p>
                   <Badge variant="muted" className="gap-1">
                     <Sparkles className="h-2.5 w-2.5" /> 7 套
                   </Badge>
@@ -124,7 +124,7 @@ export function ThemePanel() {
                         key={theme.id}
                         onClick={() => setAppearance({ theme: theme.id })}
                         className={cn(
-                          'group flex flex-col items-center gap-1.5 rounded-xl border p-2 transition-all',
+                          'group flex flex-col items-center gap-1.5 rounded-xl border p-2 transition-colors',
                           active ? 'border-primary/60 bg-primary/[0.08]' : 'border-transparent hover:border-border hover:bg-accent/40',
                         )}
                         title={theme.name}
@@ -135,15 +135,15 @@ export function ThemePanel() {
                             active && 'ring-2 ring-offset-2 ring-offset-card',
                           )}
                           style={{
-                            backgroundImage: `linear-gradient(135deg, ${theme.from}, ${theme.to})`,
-                            boxShadow: active ? `0 0 16px ${theme.from}` : undefined,
+                            backgroundColor: theme.from,
+                            boxShadow: active ? `0 0 0 2px hsl(var(--background)), 0 0 0 3px ${theme.from}` : undefined,
                             // ring color follows the swatch
                             ['--tw-ring-color' as string]: theme.from,
                           }}
                         >
                           {active && <span className="h-2 w-2 rounded-full bg-white/90" />}
                         </span>
-                        <span className={cn('text-[10px]', active ? 'text-foreground' : 'text-muted-foreground')}>{theme.name}</span>
+                        <span className={cn('text-[11.5px]', active ? 'text-foreground' : 'text-muted-foreground')}>{theme.name}</span>
                       </button>
                     )
                   })}
@@ -191,7 +191,7 @@ export function ThemePanel() {
               <Separator />
 
               <section>
-                <p className="mb-1 text-[10.5px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/60">
+                <p className="mb-1 text-[12px] font-semibold text-muted-foreground/60">
                   代码与差异
                 </p>
                 <OptionRow label="差异布局" hint="并排或单列显示">

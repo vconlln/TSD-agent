@@ -31,14 +31,14 @@ function ModelRow({ model, active, onUse }: { model: W3Model; active: boolean; o
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className="truncate text-[12px] font-medium">{model.name}</span>
-          {model.recommended ? <Badge variant="gradient" className="text-[9px]">推荐</Badge> : null}
+          <span className="truncate text-[12.5px] font-medium">{model.name}</span>
+          {model.recommended ? <Badge variant="gradient" className="text-[11.5px]">推荐</Badge> : null}
         </div>
-        <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] text-muted-foreground/70">
+        <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground/70">
           <span className="font-mono">{model.id}</span>
           {model.contextWindow ? <span>· {(model.contextWindow / 1024).toFixed(0)}K 上下文</span> : null}
           {model.tags?.map((tag) => (
-            <span key={tag} className="rounded bg-muted/60 px-1 text-[9.5px]">
+            <span key={tag} className="rounded bg-muted/60 px-1 text-[11.5px]">
               {tag}
             </span>
           ))}
@@ -141,13 +141,13 @@ export function W3Card() {
               <UserRound className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 text-[12.5px] font-medium">
+              <div className="flex items-center gap-1.5 text-[13px] font-medium">
                 {status?.user?.name || '已登录用户'}
-                <Badge variant="muted" className="font-mono text-[9.5px]">
+                <Badge variant="muted" className="font-mono text-[11.5px]">
                   {status?.tokenPreview || '••••'}
                 </Badge>
               </div>
-              <div className="text-[10.5px] text-muted-foreground/70">
+              <div className="text-[12px] text-muted-foreground/70">
                 {status?.user?.department ? `${status.user.department} · ` : ''}
                 {status?.user?.email || '凭证有效期至 ' + formatDateTime(status?.expiresAt)}
               </div>
@@ -170,10 +170,10 @@ export function W3Card() {
 
           <div>
             <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-muted-foreground/60">
+              <span className="text-[12px] font-semibold text-muted-foreground/60">
                 可用模型
               </span>
-              <span className="text-[10.5px] text-muted-foreground/60">{status?.models.length ?? 0} 个</span>
+              <span className="text-[12px] text-muted-foreground/60">{status?.models.length ?? 0} 个</span>
             </div>
             <div className="space-y-1.5">
               {(status?.models ?? []).map((model) => (
@@ -189,12 +189,12 @@ export function W3Card() {
                 />
               ))}
               {!status?.models.length ? (
-                <p className="px-2 py-3 text-center text-[11.5px] text-muted-foreground">凭证已获取，但模型清单为空</p>
+                <p className="px-2 py-3 text-center text-[12.5px] text-muted-foreground">凭证已获取，但模型清单为空</p>
               ) : null}
             </div>
           </div>
 
-          <p className="flex items-start gap-1.5 rounded-lg border border-border/50 bg-muted/20 px-2.5 py-2 text-[10.5px] leading-relaxed text-muted-foreground/80">
+          <p className="flex items-start gap-1.5 rounded-lg border border-border/50 bg-muted/20 px-2.5 py-2 text-[12px] leading-relaxed text-muted-foreground/80">
             <KeyRound className="mt-0.5 h-3 w-3 shrink-0" />
             凭证仅保存在本机工作区（密码不落盘）。点击「用作推理模型」只切换模型标识；调用模型仍需在下方「推理引擎」填写网关地址与密钥。
           </p>
@@ -235,7 +235,7 @@ export function W3Card() {
                 value={serverUrl}
                 onChange={(e) => setServerUrl(e.target.value)}
                 placeholder="https://w3.example.internal"
-                className="flex-1 font-mono text-[12px]"
+                className="flex-1 font-mono text-[12.5px]"
               />
               <Button size="sm" variant="secondary" className="shrink-0 gap-1" loading={savingServer} onClick={() => void saveServer()}>
                 <ShieldCheck className="h-3.5 w-3.5" /> 保存
@@ -244,7 +244,7 @@ export function W3Card() {
           </Field>
 
           {error ? (
-            <p className="rounded-lg border border-destructive/30 bg-destructive/[0.06] px-2.5 py-2 text-[11.5px] text-destructive">
+            <p className="rounded-lg border border-destructive/30 bg-destructive/[0.06] px-2.5 py-2 text-[12.5px] text-destructive">
               {error}
             </p>
           ) : null}
@@ -253,7 +253,7 @@ export function W3Card() {
             <Button size="sm" variant="primary" className="gap-1.5" loading={loading} onClick={() => void submit()}>
               <Sparkles className="h-3.5 w-3.5" /> 登录取凭证
             </Button>
-            <span className="text-[11px] text-muted-foreground/70">
+            <span className="text-[12px] text-muted-foreground/70">
               {status?.configured ? '使用内网 W3 服务认证' : '未配置网关时为演示模式，任意账号 + 4 位以上密码即可'}
             </span>
           </div>

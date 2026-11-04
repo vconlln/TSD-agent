@@ -67,7 +67,7 @@ export function PipelineTimeline({ run, className }: { run?: Run; className?: st
   if (!steps.length) {
     return (
       <div className={cn('rounded-xl border border-dashed border-border/70 px-4 py-8 text-center', className)}>
-        <p className="text-[12.5px] text-muted-foreground">尚未开始升级。填写升级方案后点击「开始升级」。</p>
+        <p className="text-[13px] text-muted-foreground">尚未开始升级。填写升级方案后点击「开始升级」。</p>
       </div>
     )
   }
@@ -93,24 +93,24 @@ export function PipelineTimeline({ run, className }: { run?: Run; className?: st
             <div className={cn('min-w-0 flex-1 rounded-lg px-2 py-0.5', active && 'bg-primary/[0.045]')}>
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <Icon className={cn('h-3 w-3', active ? 'text-primary' : 'text-muted-foreground/60')} />
-                <span className={cn('text-[12px] font-medium', step.status === 'pending' ? 'text-muted-foreground/60' : 'text-foreground/90')}>
+                <span className={cn('text-[12.5px] font-medium', step.status === 'pending' ? 'text-muted-foreground/60' : 'text-foreground/90')}>
                   {step.title}
                 </span>
                 {step.metrics
                   ? Object.entries(step.metrics)
                       .slice(0, 3)
                       .map(([k, v]) => (
-                        <span key={k} className="rounded bg-muted/60 px-1.5 py-0.5 text-[10px] tabular text-muted-foreground">
+                        <span key={k} className="rounded bg-muted/60 px-1.5 py-0.5 text-[11.5px] tabular text-muted-foreground">
                           {k} {v}
                         </span>
                       ))
                   : null}
-                <span className="ml-auto shrink-0 text-[10.5px] tabular text-muted-foreground/50">
+                <span className="ml-auto shrink-0 text-[12px] tabular text-muted-foreground/50">
                   {step.startedAt && step.status !== 'pending' ? formatDuration(duration) : ''}
                 </span>
               </div>
               {step.detail ? (
-                <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground/80">{step.detail}</p>
+                <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground/80">{step.detail}</p>
               ) : null}
               {active && step.progress !== undefined ? (
                 <ProgressBar value={step.progress} indeterminate={step.progress <= 0} className="mt-1.5 h-1" />
