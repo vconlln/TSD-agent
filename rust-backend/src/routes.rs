@@ -14,7 +14,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::{
-    diff, events, pipeline, projects, runs, state,
+    chat, diff, events, pipeline, projects, runs, settings, state,
     state::AppState,
     store,
 };
@@ -42,7 +42,7 @@ fn bad_request(msg: &str) -> ApiError {
 pub fn router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/health", get(health))
-        .route("/api/settings", get(settings))
+        .route("/api/settings", get(get_settings).put(put_settings))
         .route("/api/projects", get(list_projects))
         .route("/api/projects/{id}", get(get_project))
         .route("/api/projects/{id}/documents", get(documents))
@@ -57,23 +57,22 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/runs/{id}", get(get_run))
         .route("/api/runs/{id}/cancel", post(cancel_run))
         .route("/api/runs/{id}/events", get(run_events))
+        .route("/api/projects/{id}/chat", post(start_chat))
+        .route(
+            "/api/projects/{id}/apply",
+            post(apply_proposal).delete(discard_proposal),
+        )
         .with_state(state)
 }
 
 async fn health(State(state): State<Arc<AppState>>) -> Json<Value> {
-    // 引擎状态与 Python 版口径一致：配置完整即 online
-    let settings = load_settings(&state);
+    // 引擎状态与 Python 版口径一致：offlineMode / provider=offline 时一定是离线
+    let settings = settings::load(&state.workspace);
     let engine = settings
         .get("engine")
         .cloned()
         .unwrap_or_else(|| json!({}));
-    let offline = engine.get("offlineMode").and_then(Value::as_bool).unwrap_or(false);
-    let has_key = engine
-        .get("apiKey")
-        .and_then(Value::as_str)
-        .map(|s| !s.is_empty())
-        .unwrap_or(false);
-    let online = !offline && has_key;
+    let online = settings::llm_available(&state.workspace);
     Json(json!({
         "ok": true,
         "version": state.version,
@@ -89,38 +88,16 @@ async fn health(State(state): State<Arc<AppState>>) -> Json<Value> {
     }))
 }
 
-fn load_settings(state: &AppState) -> Value {
-    store::read_json(&state.workspace.join(".tsd").join("config.json")).unwrap_or_else(|| json!({}))
+async fn get_settings(State(state): State<Arc<AppState>>) -> Json<Value> {
+    // 敏感字段不回传：engine 只给 apiKeySet，git 只给 tokenSet
+    Json(settings::public(&state.workspace))
 }
 
-async fn settings(State(state): State<Arc<AppState>>) -> Json<Value> {
-    let raw = load_settings(&state);
-    let engine = raw.get("engine").cloned().unwrap_or_else(|| json!({}));
-    let api_key_set = engine
-        .get("apiKey")
-        .and_then(Value::as_str)
-        .map(|s| !s.is_empty())
-        .unwrap_or(false);
-    // 永远不回传 apiKey：只给 apiKeySet 布尔
-    Json(json!({
-        "engine": {
-            "provider": engine.get("provider").cloned().unwrap_or_else(|| json!("openai-compatible")),
-            "baseUrl": engine.get("baseUrl").cloned().unwrap_or_else(|| json!("")),
-            "model": engine.get("model").cloned().unwrap_or_else(|| json!("")),
-            "apiKeySet": api_key_set,
-            "temperature": engine.get("temperature").cloned().unwrap_or_else(|| json!(0.3)),
-            "maxTokens": engine.get("maxTokens").cloned().unwrap_or_else(|| json!(8192)),
-            "timeoutSec": engine.get("timeoutSec").cloned().unwrap_or_else(|| json!(300)),
-            "offlineMode": engine.get("offlineMode").cloned().unwrap_or_else(|| json!(false)),
-        },
-        "agent": raw.get("agent").cloned().unwrap_or_else(|| json!({})),
-        "w3": raw.get("w3").cloned().unwrap_or_else(|| json!({})),
-        "git": raw.get("git").cloned().unwrap_or_else(|| json!({})),
-        "workspace": state.workspace.to_string_lossy(),
-        "concurrency": raw.get("concurrency").cloned().unwrap_or_else(|| json!(2)),
-        "autoApplyChatEdits": raw.get("autoApplyChatEdits").cloned().unwrap_or_else(|| json!(false)),
-        "language": raw.get("language").cloned().unwrap_or_else(|| json!("zh-CN")),
-    }))
+async fn put_settings(
+    State(state): State<Arc<AppState>>,
+    Json(patch): Json<Value>,
+) -> Json<Value> {
+    Json(settings::update(&state.workspace, &patch))
 }
 
 fn load_project(state: &AppState, id: &str) -> Option<Value> {
@@ -682,3 +659,176 @@ fn replay_from_disk(state: &AppState, run_id: &str, since: u64) -> axum::respons
     });
     Sse::new(tokio_stream::wrappers::UnboundedReceiverStream::new(rx)).into_response()
 }
+
+#[derive(Deserialize)]
+struct ChatHistoryItem {
+    #[serde(default)]
+    role: String,
+    #[serde(default)]
+    content: String,
+}
+
+#[derive(Deserialize)]
+struct ChatBody {
+    #[serde(default)]
+    message: String,
+    #[serde(default)]
+    history: Vec<ChatHistoryItem>,
+}
+
+async fn start_chat(
+    State(state): State<Arc<AppState>>,
+    AxumPath(id): AxumPath<String>,
+    Json(body): Json<ChatBody>,
+) -> ApiResult {
+    let Some(project) = load_project(&state, &id) else {
+        return Err(not_found("项目不存在"));
+    };
+    if body.message.trim().is_empty() {
+        return Err(bad_request("消息不能为空"));
+    }
+
+    let mut run = runs::Run::new(&id, "chat", body.message.trim());
+    run.model = Some("chat".to_string());
+    let project_dir = state.project_dir(&id);
+    let _ = runs::save_run(&project_dir, &run);
+
+    let channel = state
+        .hub
+        .create(&run.id, Some(state.events_path(&id, &run.id)));
+    channel.log("info", "收到对话请求", None);
+    channel.emit("run.status", Some(json!({ "status": "running" })));
+
+    let cancel = Arc::new(AtomicBool::new(false));
+    if let Ok(mut map) = state.cancels.lock() {
+        map.insert(run.id.clone(), cancel.clone());
+    }
+
+    // 只保留最近 20 轮，避免上下文无限膨胀
+    let history: Vec<Value> = body
+        .history
+        .iter()
+        .filter(|item| !item.content.trim().is_empty())
+        .map(|item| json!({ "role": item.role, "content": item.content }))
+        .collect();
+    let history = history[history.len().saturating_sub(20)..].to_vec();
+
+    let task = chat::ChatTask {
+        state: state.clone(),
+        channel,
+        run: run.clone(),
+        cancel,
+    };
+    let message = body.message.trim().to_string();
+    let project_for_task = project.clone();
+    tokio::spawn(async move {
+        task.run_chat(project_for_task, message, history).await;
+    });
+
+    Ok(Json(json!({ "runId": run.id })))
+}
+
+#[derive(Deserialize)]
+struct ApplyBody {
+    #[serde(rename = "proposalId")]
+    proposal_id: String,
+}
+
+fn proposals_path(state: &AppState, project_id: &str) -> std::path::PathBuf {
+    state.project_dir(project_id).join("proposals.json")
+}
+
+async fn apply_proposal(
+    State(state): State<Arc<AppState>>,
+    AxumPath(id): AxumPath<String>,
+    Json(body): Json<ApplyBody>,
+) -> ApiResult {
+    let Some(project) = load_project(&state, &id) else {
+        return Err(not_found("项目不存在"));
+    };
+    let path = proposals_path(&state, &id);
+    let mut proposals = store::read_json(&path).unwrap_or_else(|| json!({}));
+    let Some(proposal) = proposals.get(&body.proposal_id).cloned() else {
+        return Err(not_found("修改建议不存在"));
+    };
+
+    let target_dir = state.target_dir(&project);
+    let _ = std::fs::create_dir_all(&target_dir);
+    let mut written: Vec<String> = Vec::new();
+    if let Some(edits) = proposal.get("edits").and_then(Value::as_array) {
+        for edit in edits {
+            let rel = edit
+                .get("path")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .trim_start_matches("./")
+                .to_string();
+            let Some(content) = edit.get("after").and_then(Value::as_str) else {
+                continue;
+            };
+            if rel.is_empty() {
+                continue;
+            }
+            let Some(target) = state::safe_write_path(&target_dir, &rel) else {
+                continue;
+            };
+            if std::fs::write(&target, content).is_ok() {
+                written.push(rel);
+            }
+        }
+    }
+
+    if let Some(object) = proposals.as_object_mut() {
+        if let Some(entry) = object.get_mut(&body.proposal_id).and_then(Value::as_object_mut) {
+            entry.insert("applied".to_string(), json!(true));
+            entry.insert("appliedAt".to_string(), json!(events::now_ms()));
+        }
+    }
+    if let Ok(text) = serde_json::to_string_pretty(&proposals) {
+        let _ = std::fs::write(&path, text);
+    }
+
+    // 应用后立刻刷新差异，前端不用等下一次回归
+    if let Some(payload) = pipeline::refresh_project_diff(&state, &project) {
+        let mut updated = project.clone();
+        if let Some(object) = updated.as_object_mut() {
+            object.insert("status".to_string(), json!("ready"));
+            object.insert("updatedAt".to_string(), json!(events::now_ms()));
+            object.insert(
+                "stats".to_string(),
+                json!({
+                    "files": payload["stats"]["files"],
+                    "added": payload["stats"]["added"],
+                    "removed": payload["stats"]["removed"],
+                    "sections": payload["plan"]["sections"].as_array().map(|a| a.len()).unwrap_or(0),
+                    "filesChanged": payload["stats"]["filesChanged"],
+                }),
+            );
+        }
+        let _ = projects::save(&state.workspace, &updated);
+    }
+
+    Ok(Json(json!({ "ok": true, "files": written })))
+}
+
+async fn discard_proposal(
+    State(state): State<Arc<AppState>>,
+    AxumPath(id): AxumPath<String>,
+    Json(body): Json<ApplyBody>,
+) -> ApiResult {
+    if load_project(&state, &id).is_none() {
+        return Err(not_found("项目不存在"));
+    }
+    let path = proposals_path(&state, &id);
+    let mut proposals = store::read_json(&path).unwrap_or_else(|| json!({}));
+    if let Some(object) = proposals.as_object_mut() {
+        if let Some(entry) = object.get_mut(&body.proposal_id).and_then(Value::as_object_mut) {
+            entry.insert("discarded".to_string(), json!(true));
+        }
+    }
+    if let Ok(text) = serde_json::to_string_pretty(&proposals) {
+        let _ = std::fs::write(&path, text);
+    }
+    Ok(Json(json!({ "ok": true })))
+}
+

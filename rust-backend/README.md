@@ -1,10 +1,10 @@
 # tsd-server-rs
 
-TSD Agent 的 **Rust 后端**（按契约分层迁移，第 1 层：只读接口）。
+TSD Agent 的 **Rust 后端**（按契约分层迁移，已完成第 1~3 层）。
 
 前端一行都不用改：它只认 `docs/BACKEND-INTEGRATION.md` 里的 HTTP + SSE 契约。
 
-## 当前覆盖（第 1 + 2 层）
+## 当前覆盖（第 1~3 层）
 
 | 接口 | 状态 |
 | --- | --- |
@@ -20,7 +20,10 @@ TSD Agent 的 **Rust 后端**（按契约分层迁移，第 1 层：只读接口
 | `POST /api/projects/:id/run` | ✅（7 步离线流水线，无模型） |
 | `GET /api/runs`、`GET /api/runs/:id`、`POST /api/runs/:id/cancel` | ✅ |
 | `GET /api/runs/:id/events`（SSE） | ✅（seq 按 run 隔离、since 回放、`[DONE]`、重启后从 jsonl 回放） |
-| 其余（chat / git / W3 / agent 工具循环） | ⏳ 第 3~5 层 |
+| `PUT /api/settings` | ✅（白名单合并、密钥只写不回传、原子落盘） |
+| `POST /api/projects/:id/chat` | ✅（流式：`chat.reasoning/delta/tool/message`；5 个工具；最多 6 轮） |
+| `POST/DELETE /api/projects/:id/apply` | ✅（提案落盘 + 立刻重算 diff） |
+| 其余（git / W3 凭证 / 模型列表 / agent 工具循环） | ⏳ 第 4~5 层 |
 
 ## 运行
 
@@ -44,8 +47,16 @@ cargo build --release
 
 ```bash
 # 只读模式：不创建项目、不触发运行
-node ../scripts/contract-check.mjs --api http://127.0.0.1:8801 --read-only   # L1：只读
-node ../scripts/contract-check.mjs --api http://127.0.0.1:8801 --no-chat      # L2：+ 运行与 SSE
+node ../scripts/contract-check.mjs --api http://127.0.0.1:8801 --read-only   # L1：只读 13/13
+node ../scripts/contract-check.mjs --api http://127.0.0.1:8801 --no-chat      # L2：+ 运行与 SSE 27/27
+node ../scripts/contract-check.mjs --api http://127.0.0.1:8801                # L3：+ 对话与提案 30/30
+```
+
+深度验证（同一套断言跑 Python 版和 Rust 版，证明契约等价）：
+
+```bash
+python ../scripts/e2e/run_chat_e2e.py                 # Python 参照后端
+python ../scripts/e2e/run_chat_e2e.py --backend rust  # Rust 后端，25 项断言
 ```
 
 ## 设计取舍
@@ -54,4 +65,7 @@ node ../scripts/contract-check.mjs --api http://127.0.0.1:8801 --no-chat      # 
   （参照实现的 Python 版用 difflib；真机若想更快可后续换成 `git diff --no-index` 子进程。）
 - **项目数据原样透传**：`project.json` 直接序列化给前端，字段契约由写入方决定，
   Rust 侧不重新建模，避免两边字段漂移。
-- **写路径全部不存在**：第 1 层只读，没有 `POST/PATCH/DELETE`，因此可以安全地挂在生产旁边做对比。
+- **对话只提案、不写盘**：`chat` 路径没有任何写权限，改动只能经 `propose_edit` 变成提案，
+  由用户点「应用到代码」触发 `POST /apply` 才落盘。这样「模型说错了」永远不需要回滚。
+- **路径沙箱读写分开**：读用 `safe_join`（目标必须已存在），写用 `safe_write_path`（允许新建，
+  逐级建目录后校验父目录仍在沙箱内）。混用会让「新建文档」这类提案被静默跳过。

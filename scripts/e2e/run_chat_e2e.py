@@ -8,7 +8,9 @@
 4. 多轮上下文：带 history 的第二次对话正常完成
 5. 离线降级：没有 API Key 时仍能给出可应用的确定性改动
 
-用法：python scripts/e2e/run_chat_e2e.py
+用法：
+  python scripts/e2e/run_chat_e2e.py                    # 跑 Python 参照后端
+  python scripts/e2e/run_chat_e2e.py --backend rust     # 跑 Rust 后端（同一套断言）
 """
 from __future__ import annotations
 
@@ -38,6 +40,27 @@ def check(condition: bool, label: str, detail: str = "") -> bool:
     print(f"  {FAIL} {label}" + (f"  -> {detail}" if detail else ""))
     failures.append(label)
     return False
+
+
+def rust_binary() -> str:
+    name = "tsd-server-rs.exe" if os.name == "nt" else "tsd-server-rs"
+    return str(ROOT / "rust-backend" / "target" / "release" / name)
+
+
+def backend_command(port: int, workspace: Path) -> list[str]:
+    """默认跑 Python 参照实现。
+
+    --backend rust（或 TSD_BACKEND_BIN=<可执行文件>）时改跑 Rust 后端：
+    同一套断言，用来证明两层实现在契约上等价。
+    """
+    binary = os.environ.get("TSD_BACKEND_BIN", "").strip()
+    if not binary and "--backend" in sys.argv and "rust" in sys.argv:
+        binary = rust_binary()
+    if binary:
+        if not Path(binary).exists():
+            raise SystemExit(f"找不到后端可执行文件：{binary}（先 npm run rust:build）")
+        return [binary, "--port", str(port), "--workspace", str(workspace)]
+    return [sys.executable, str(ROOT / "server" / "main.py"), "--port", str(port), "--workspace", str(workspace)]
 
 
 def free_port() -> int:
@@ -118,8 +141,10 @@ async def main() -> int:
         stderr=subprocess.DEVNULL,
     )
     backend_log = (work_root / "server.log").open("wb")
+    # TSD_BACKEND_BIN 指向 Rust 后端可执行文件即可用同一套断言验它（迁移期两边都跑）
+    backend_cmd = backend_command(api_port, workspace)
     backend = subprocess.Popen(
-        [sys.executable, str(ROOT / "server" / "main.py"), "--port", str(api_port), "--workspace", str(workspace)],
+        backend_cmd,
         stdout=backend_log,
         stderr=subprocess.STDOUT,
         env={**{k: v for k, v in os.environ.items() if "proxy" not in k.lower()}, "TSD_LLM_API_KEY": ""},

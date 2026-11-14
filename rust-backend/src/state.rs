@@ -85,6 +85,25 @@ impl AppState {
     }
 }
 
+/// 写文件用的路径解析：目标文件可以还不存在（新建文档），但必须落在 root 内。
+/// safe_join 会 canonicalize 目标本身，因此只适合读已有文件。
+pub fn safe_write_path(root: &Path, rel: &str) -> Option<PathBuf> {
+    let trimmed = rel.trim().trim_start_matches(['/', '\\']);
+    if trimmed.is_empty() || trimmed.split(['/', '\\']).any(|part| part == "..") {
+        return None;
+    }
+    let root_norm = root.canonicalize().ok()?;
+    let candidate = root_norm.join(trimmed);
+    let file_name = candidate.file_name()?.to_owned();
+    let parent = candidate.parent()?;
+    std::fs::create_dir_all(parent).ok()?;
+    let parent_norm = parent.canonicalize().ok()?;
+    if !parent_norm.starts_with(&root_norm) {
+        return None;
+    }
+    Some(parent_norm.join(file_name))
+}
+
 /// 把用户传进来的相对路径解析到 root 内，越界直接拒绝（与 Python 版 safe_join 等价）。
 pub fn safe_join(root: &Path, rel: &str) -> Option<PathBuf> {
     let trimmed = rel.trim_start_matches(['/', '\\']);

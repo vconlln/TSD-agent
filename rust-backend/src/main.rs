@@ -7,12 +7,15 @@
 //! 用法：
 //!   tsd-server-rs --port 8801 --host 127.0.0.1 --workspace /path/to/workspace
 
+mod chat;
 mod diff;
 mod events;
+mod llm;
 mod pipeline;
 mod projects;
 mod routes;
 mod runs;
+mod settings;
 mod state;
 mod store;
 
@@ -97,7 +100,9 @@ async fn main() {
     println!("[tsd-rs] TSD Agent backend (Rust) v{}", state.version);
     println!("[tsd-rs] workspace: {}", state.workspace.display());
     println!("[tsd-rs] listening: http://{}", address);
-    println!("[tsd-rs] layer 1: health / settings / projects / documents / diff / tree / file");
+    println!(
+        "[tsd-rs] layers: 1 只读契约 · 2 运行与事件流 · 3 流式对话与改动提案"
+    );
 
     let app = routes::router(state);
     if let Err(error) = axum::serve(listener, app).await {

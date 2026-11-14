@@ -21,6 +21,21 @@ pub const UPGRADE_STEPS: &[(&str, &str)] = &[
     ("finalize", "整理结果"),
 ];
 
+/// 对话运行的步骤（与 Python 版 CHAT_STEPS 一致）
+pub const CHAT_STEPS: &[(&str, &str)] = &[
+    ("context", "读取项目上下文"),
+    ("reason", "理解修改需求"),
+    ("patch", "生成修改建议"),
+];
+
+fn steps_for(kind: &str) -> &'static [(&'static str, &'static str)] {
+    if kind == "chat" {
+        CHAT_STEPS
+    } else {
+        UPGRADE_STEPS
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RunStep {
     pub key: String,
@@ -88,7 +103,7 @@ impl Run {
             prompt: prompt.to_string(),
             started_at: now_ms(),
             finished_at: None,
-            steps: UPGRADE_STEPS
+            steps: steps_for(kind)
                 .iter()
                 .map(|(key, title)| RunStep::pending(key, title))
                 .collect(),

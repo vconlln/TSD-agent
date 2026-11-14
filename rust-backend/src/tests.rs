@@ -131,3 +131,27 @@ fn events_are_persisted_for_replay_after_restart() {
     assert_eq!(parsed["type"], "step.status");
     let _ = fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn safe_write_path_allows_new_files_and_rejects_escapes() {
+    use crate::state::{safe_join, safe_write_path};
+    let root = temp_dir("safe-write");
+    let target = root.join("v1.0.0");
+    fs::create_dir_all(&target).unwrap();
+
+    // 新建嵌套文件是允许的（对话提案会创建 docs/xxx.md）
+    let created = safe_write_path(&target, "docs/CHAT_NOTES.md").expect("新文件应可解析");
+    assert!(created.starts_with(target.canonicalize().unwrap()));
+    let nested = safe_write_path(&target, "./a/b/c.txt").expect("多层新目录应可解析");
+    assert!(nested.ends_with("c.txt"));
+
+    // 越界与空路径仍然拒绝
+    assert!(safe_write_path(&target, "../evil.txt").is_none(), ".. 必须拒绝");
+    assert!(safe_write_path(&target, "").is_none());
+    assert!(safe_write_path(&target, "/etc/passwd").is_none() || !safe_write_path(&target, "/etc/passwd").unwrap().starts_with("/etc"));
+
+    // 读路径要求文件已存在，两种语义不能混
+    assert!(safe_join(&target, "docs/CHAT_NOTES.md").is_none());
+    let _ = fs::remove_dir_all(&root);
+}
+

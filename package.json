@@ -42,8 +42,10 @@
     "contract:check": "node scripts/contract-check.mjs",
     "rust:build": "cd rust-backend && cargo build --release",
     "rust:test": "cd rust-backend && cargo test",
-    "rust:check": "node scripts/contract-check.mjs --api http://127.0.0.1:8801 --no-chat",
-    "rust:check:read": "node scripts/contract-check.mjs --api http://127.0.0.1:8801 --read-only"
+    "rust:check": "node scripts/contract-check.mjs --api http://127.0.0.1:8801",
+    "rust:check:l2": "node scripts/contract-check.mjs --api http://127.0.0.1:8801 --no-chat",
+    "rust:check:read": "node scripts/contract-check.mjs --api http://127.0.0.1:8801 --read-only",
+    "rust:e2e:chat": "node scripts/py.mjs scripts/e2e/run_chat_e2e.py --backend rust"
   },
   "dependencies": {
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",

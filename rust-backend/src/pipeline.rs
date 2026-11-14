@@ -275,6 +275,29 @@ impl Pipeline {
     }
 }
 
+/// 重算并落盘 diff.json：流水线结束、应用对话改动后都要用。
+/// 返回写入的 payload（含 plan / files / stats）。
+pub fn refresh_project_diff(state: &AppState, project: &Value) -> Option<Value> {
+    let project_id = project.get("id").and_then(Value::as_str)?;
+    let source_dir = state.source_dir(project_id);
+    let target_dir = state.target_dir(project);
+    let (plan_text, _) = crate::store::read_text(&state.plan_path(project_id), 400_000);
+    let (update_doc, _) = crate::store::read_text(&state.update_path(project_id), 400_000);
+    let file_diffs = diff::compute_diffs(&source_dir, &target_dir);
+    let plan_diff = diff::plan_diff(&plan_text, &update_doc);
+    let payload = json!({
+        "projectId": project_id,
+        "generatedAt": now_ms(),
+        "plan": plan_diff,
+        "files": file_diffs.files,
+        "stats": file_diffs.stats,
+    });
+    if let Ok(text) = serde_json::to_string(&payload) {
+        let _ = fs::write(state.diff_path(project_id), text);
+    }
+    Some(payload)
+}
+
 pub struct Inventory {
     pub total: usize,
     pub top_languages: Vec<(String, usize)>,

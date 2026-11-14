@@ -25,7 +25,7 @@ Agent 类后端有两类代码：
 | --- | --- | --- | --- |
 | **L1 只读契约** | `GET /api/health`、`/settings`、`/projects`、`/projects/:id`、`/documents`、`/diff`、`/tree`、`/file` | ✅ **已完成** | `contract-check --read-only` 13/13 |
 | **L2 运行与事件流** | `POST/PATCH/DELETE /projects`、`POST /projects/:id/run`、`GET /runs`、`GET /runs/:id`、`POST /runs/:id/cancel`、`GET /runs/:id/events`（SSE） | ✅ **已完成** | `contract-check --no-chat` 必需项 **27/27** |
-| **L3 对话** | `POST /projects/:id/chat` + `chat.delta/reasoning/tool/message` | ⏳ | `run_chat_e2e` 的 25 项断言 |
+| **L3 对话与提案** | `POST /projects/:id/chat` + `chat.delta/reasoning/tool/message` + `POST/DELETE /projects/:id/apply` + `GET/PUT /settings` | ✅ **已完成** | `contract-check` 必需项 **30/30**；`run_chat_e2e --backend rust` **25/25** |
 | **L4 Git 与凭证** | `/api/git/*`、`/api/auth/w3/*`、`/api/models` | ⏳ | `run_git_e2e` 的 37 项断言 |
 | **L5 Agent 循环** | 工具沙箱、验证循环、提示词、模型协议 | ⏳ | `run_agent_e2e` 的 23 项断言 |
 
@@ -72,13 +72,16 @@ Agent 类后端有两类代码：
 export CARGO_HOME=$(pwd)/../.cargo
 cd rust-backend
 cargo build --release
-cargo test                       # 5 个单测：补丁计数、章节切分、重命名识别…
+cargo test                       # 10 个单测：补丁计数、章节切分、重命名识别、seq、路径沙箱…
 cargo run --release -- --port 8801 --workspace ../scripts/e2e/.tmp/demo-workspace
 ```
 
 ```bash
-# 验收
-node scripts/contract-check.mjs --api http://127.0.0.1:8801 --read-only
+# 验收（三层逐级收紧；已封装成 npm script）
+npm run rust:check:read    # L1：只读契约 13/13
+npm run rust:check:l2      # L2：加上运行与 SSE，27/27
+npm run rust:check         # L3：再加对话与提案，30/30
+npm run rust:e2e:chat      # L3 深度：同一套 25 项断言跑 Rust 后端
 ```
 
 ---
@@ -91,11 +94,18 @@ rust-backend/
 ├── README.md          # 快速上手 + 本层覆盖范围
 └── src/
     ├── main.rs        # CLI（--port/--host/--workspace，与 Electron supervisor 的调用方式一致）
-    ├── routes.rs      # 8 个只读接口
-    ├── state.rs       # 工作区路径、目录约定、路径沙箱 safe_join
+    ├── routes.rs      # 全部 HTTP 路由（只读 / 项目 / 运行 / SSE / 对话 / 应用提案 / 配置）
+    ├── state.rs       # 工作区路径、目录约定、路径沙箱 safe_join（读）与 safe_write_path（写）
     ├── store.rs       # 项目读取、walk（忽略规则与 Python 版一致）、二进制/语言识别
     ├── diff.rs        # similar 逐文件补丁 + markdown 章节差异 + 重命名识别
-    └── tests.rs       # 5 个单测（CI 可跑）
+    ├── events.rs      # 事件中心：按 run 的 seq、环形缓冲、广播、jsonl 落盘
+    ├── runs.rs        # 运行记录与步骤（升级 7 步 / 对话 3 步）
+    ├── projects.rs    # 项目 CRUD、slug、版本号
+    ├── pipeline.rs    # 7 步升级流水线 + refresh_project_diff
+    ├── settings.rs    # 工作区配置（白名单合并、密钥只写不回传、环境变量/内置默认）
+    ├── llm.rs         # OpenAI 兼容客户端：SSE 解析、reasoning 分离、tools/stream 降级
+    ├── chat.rs        # 对话 Agent：5 个工具、改动提案、离线兜底
+    └── tests.rs       # 10 个单测（CI 可跑）
 ```
 
 ---
@@ -134,3 +144,40 @@ rust-backend/
 - **工具注册表**：`tool_specs()` 生成 JSON Schema；工具实现各自一个模块，统一 async trait。
 - **模型适配层单独 crate**：内网网关的怪癖（SSE 字段缺失、tools 不支持）集中隔离在一个文件。
 - **配置外置**：步数预算、超时、观察截断长度放 `config.json`，不写死在代码里。
+---
+
+## L3 实测（2026-11）
+
+| 项 | 结果 |
+| --- | --- |
+| `contract-check`（全量） | **必需项 30/30**；可选项剩 `/api/auth/w3/status`、`/api/models`（L4） |
+| 对话事件 | `chat.reasoning` 5 段、`chat.delta` 60 块、`chat.tool` 3 次（list_files + 2×propose_edit）、`chat.message` 带 2 个文件的提案 |
+| `run_chat_e2e --backend rust` | **25/25** 断言全绿：流式思考先于正文、工具全成功、提案落盘、差异刷新可见、多轮历史、离线降级 |
+| 单元测试 | **10 个**（新增：`safe_write_path` 允许新建嵌套文件、拒绝 `..` 越界） |
+| 冷启动 | 9 ms（引入 reqwest/rustls 后未变） |
+
+### L3 已实现的行为
+
+- **模型客户端**（`llm.rs`）：OpenAI 兼容 `/chat/completions`；SSE 逐帧解析，
+  `reasoning_content` / `reasoning` / `thinking` 三种思考字段统一抽出、不混进正文；
+  工具调用按 `index` 增量拼装（网关把参数分片发也能还原）。
+- **两条降级路径**（实测均通过）：
+  1. 服务端忽略 `stream` 直接返回整段 JSON → 检测到「没有任何 SSE 帧」即退回非流式 `chat_once`；
+  2. 服务端对 `tools` 返回 400 → 去掉工具重试一次纯文本对话。
+  两条路径都会把完整答案切片（36 字一块）推成 `chat.delta`，前端「逐字出现」的观感不变。
+- **对话 Agent**（`chat.rs`）：5 个工具 —— `list_files` / `read_file` / `grep` / `propose_edit` / `update_plan`，最多 6 轮；
+  **对话里没有写盘权限**，所有改动只变成提案（`propose_edit` → `proposals.json`），
+  用户点「应用到代码」才由 `POST /apply` 落盘。这条权限切分是刻意的：对话路径不需要备份也能回滚。
+- **提案与落盘**（`POST /apply`）：写入 `v{targetVersion}/`，随后立刻重算 `diff.json` 并回写项目 stats，
+  前端不用等下一次流水线就能看到新差异；`DELETE /apply` 只标记 discarded。
+- **配置**（`settings.rs`）：白名单合并（未知键忽略）、`apiKey` / `git.token` 只写不回传（对外只有 `apiKeySet` / `tokenSet`）、
+  临时文件 + rename 原子落盘；优先级依次为 内置默认 → `TSD_DEFAULTS_FILE` → `config.json` → `TSD_LLM_*` 环境变量。
+- **离线口径**：`offlineMode` 或 `provider=offline` 时 `/api/health` 报 `engine=offline`，
+  对话走确定性兜底（把追加需求写进 `UPGRADE_NOTES.md` 作为提案），仍可应用。
+
+### 踩坑记录：`safe_join` 只能读，不能写
+
+`safe_join` 用 `canonicalize` 校验，**只适合读已有文件**：对话提案经常新建 `docs/xxx.md`，
+canonicalize 失败会被静默跳过（接口返回 200 但 `files: []`）。现在读写分开：
+读用 `safe_join`，写用 `safe_write_path`（逐级建目录后校验父目录仍在沙箱内）。
+
