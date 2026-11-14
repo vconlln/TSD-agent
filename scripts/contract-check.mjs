@@ -267,6 +267,56 @@ function findFirstFile(node) {
   return null
 }
 
+/**
+ * 只读深度检查：不创建任何数据，直接对「仓库里已有的项目」验证读接口。
+ * Rust 后端的第 1 层就用这个验收（--read-only）。
+ */
+async function checkReadOnlyEndpoints(options) {
+  const listing = await http(options, '/api/projects')
+  const projects = (listing.body && listing.body.projects) || []
+  if (!projects.length) {
+    record('可选', '只读深度检查', false, '工作区里没有项目，跳过 documents/diff/tree/file（先跑 npm run seed:demo）')
+    return
+  }
+  const project = projects.find((item) => item.status === 'ready') || projects[0]
+  const base = '/api/projects/' + project.id
+
+  const one = await http(options, base)
+  record('必需', 'GET /api/projects/:id', one.ok && Boolean(one.body && one.body.id), one.ok ? 'ok' : 'HTTP ' + one.status)
+
+  const documents = await http(options, base + '/documents')
+  if (requireFields('必需', 'GET /api/projects/:id/documents', documents.body, ['plan', 'update'])) {
+    requireFields('必需', 'documents.plan 字段', documents.body.plan, ['content', 'exists'])
+  }
+
+  const diff = await http(options, base + '/diff')
+  if (requireFields('必需', 'GET /api/projects/:id/diff', diff.body, ['files', 'plan', 'stats'])) {
+    const files = diff.body.files
+    record('必需', 'diff.files 是数组', Array.isArray(files), Array.isArray(files) ? files.length + ' 个文件' : '不是数组')
+    if (Array.isArray(files) && files.length) {
+      const sample = files.find((file) => file.patch) || files[0]
+      const fieldsOk = ['path', 'status', 'additions', 'deletions'].every((key) => sample[key] !== undefined)
+      record('必需', 'diff.files[] 字段', fieldsOk, fieldsOk ? 'ok' : '缺 path/status/additions/deletions')
+      const patchOk = typeof sample.patch === 'string'
+      record('可选', 'diff patch 为统一差异文本', patchOk, patchOk ? (sample.patch.includes('@@') ? 'ok' : '缺 @@ 头') : '不是字符串')
+    }
+    requireFields('必需', 'diff.stats 字段', diff.body.stats, ['files', 'added', 'removed'])
+  }
+
+  const tree = await http(options, base + '/tree?side=target')
+  const treeOk = Boolean(tree.body && (tree.body.tree === null || typeof tree.body.tree === 'object'))
+  record('必需', 'GET /api/projects/:id/tree', tree.ok && treeOk, tree.ok ? 'ok' : 'HTTP ' + tree.status)
+
+  const firstFile = findFirstFile(tree.body && tree.body.tree)
+  if (firstFile) {
+    const file = await http(options, base + '/file?side=target&path=' + encodeURIComponent(firstFile))
+    const fileOk = file.ok && file.body && typeof file.body.content === 'string'
+    record('必需', 'GET /api/projects/:id/file', Boolean(fileOk), fileOk ? firstFile : 'HTTP ' + file.status)
+  } else {
+    record('必需', 'GET /api/projects/:id/file', false, '树里没有文件，无法验证')
+  }
+}
+
 async function checkChat(options, project) {
   const chat = await http(options, '/api/projects/' + project.id + '/chat', {
     method: 'POST',
@@ -312,6 +362,10 @@ async function main() {
   if (!alive) {
     console.error('\n后端不可用：先确认地址/端口/CORS，再看 GET /api/health。')
     process.exit(2)
+  }
+
+  if (options.readOnly) {
+    await checkReadOnlyEndpoints(options)
   }
 
   let project = null

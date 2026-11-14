@@ -356,6 +356,7 @@ TSD-agent/
 | [docs/API.md](docs/API.md) | 参照实现的逐字段线上格式 |
 | [docs/AI-PROMPTS.md](docs/AI-PROMPTS.md) | **给内网 AI 的话术包**：把契约贴给它，让它帮你写后端 |
 | [docs/AGENT-DESIGN.md](docs/AGENT-DESIGN.md) | Agent 循环设计与移植清单 |
+| [docs/RUST-BACKEND.md](docs/RUST-BACKEND.md) | **Rust 后端迁移计划**：分层顺序、每层验收口径、L1 实测数据 |
 
 > 内网场景推荐流程：把 `shared/types.ts` + `src/lib/api.ts` + BACKEND-INTEGRATION 的 §3/§4
 > 喂给你们的内网 AI → 按模块生成本后端骨架 → 每接一块跑一次 `contract-check`。
