@@ -7,6 +7,7 @@
 //! 用法：
 //!   tsd-server-rs --port 8801 --host 127.0.0.1 --workspace /path/to/workspace
 
+mod agent;
 mod auth;
 mod chat;
 mod diff;
@@ -16,11 +17,14 @@ mod inline;
 mod llm;
 mod pipeline;
 mod projects;
+mod prompts;
+mod repomap;
 mod routes;
 mod runs;
 mod settings;
 mod state;
 mod store;
+mod toolbox;
 
 #[cfg(test)]
 mod tests;

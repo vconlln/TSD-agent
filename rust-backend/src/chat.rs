@@ -16,8 +16,6 @@ const MAX_ROUNDS: usize = 6;
 const MAX_EDITS: usize = 8;
 const OBSERVATION_LIMIT: usize = 4000;
 
-const SYSTEM_CHAT: &str = "你是 TSD Agent 的项目升级助手，正在和工程师对话。你熟悉这个项目的原始方案、升级方案与升级后的代码库。\n\n工作方式：\n1. 涉及具体实现时，先用 list_files / read_file / grep 核实，不要凭印象作答；\n2. 要改代码时用 propose_edit 提交完整文件内容，用户会在界面上审阅后决定是否应用；\n3. 回答用简体中文，结构清晰但不啰嗦；代码与路径保持原样；\n4. 不要编造文件内容或测试结果；\n5. 不需要改代码时直接回答，不要调用 propose_edit。";
-
 pub fn tool_specs() -> Value {
     json!([
         {
@@ -299,7 +297,7 @@ impl ChatTask {
                 files.keys().take(200).cloned().collect::<Vec<_>>().join("\n")
             );
             let mut messages: Vec<Value> = vec![
-                json!({ "role": "system", "content": SYSTEM_CHAT }),
+                json!({ "role": "system", "content": crate::prompts::get("chat") }),
                 json!({ "role": "user", "content": context }),
                 json!({ "role": "assistant", "content": "收到，我已了解项目当前状态。" }),
             ];

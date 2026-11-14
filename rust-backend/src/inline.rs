@@ -20,14 +20,6 @@ const MAX_SELECTION_LINES: usize = 400;
 /// 三个反引号：写成转义，避免源码里出现围栏字样
 const FENCE: &str = "\u{60}\u{60}\u{60}";
 
-const SYSTEM_EDIT: &str = "你是资深工程师，负责在一个既有代码库里精确修改用户选中的代码。\
-只输出 JSON，不要输出解释性文字或 Markdown 代码围栏。\
-replacement 必须是可直接替换选中行的完整代码文本，保持一致缩进与引号风格。";
-
-const SYSTEM_EXPLAIN: &str = "你是资深工程师，负责向同事解释一段代码。\
-用简体中文输出 Markdown：先一句话结论，再分点说明作用、关键逻辑、潜在风险或改进点。\
-不要复述整段代码，不要使用二级以上标题。";
-
 pub struct InlineError {
     pub status: u16,
     pub message: String,
@@ -167,7 +159,7 @@ pub async fn edit(
     let version = project.get("targetVersion").and_then(Value::as_str).unwrap_or("next");
     let head: String = current.chars().take(60_000).collect();
     let messages = vec![
-        json!({ "role": "system", "content": SYSTEM_EDIT }),
+        json!({ "role": "system", "content": crate::prompts::get("inline-edit") }),
         json!({
             "role": "user",
             "content": format!(
@@ -264,7 +256,7 @@ pub async fn explain(
         .map(|text| format!("用户的问题：{text}\n"))
         .unwrap_or_default();
     let messages = vec![
-        json!({ "role": "system", "content": SYSTEM_EXPLAIN }),
+        json!({ "role": "system", "content": crate::prompts::get("inline-explain") }),
         json!({
             "role": "user",
             "content": format!("文件：{rel}（{language}），{where_text}。\n\n<code>\n{body}\n</code>\n\n{tail}"),

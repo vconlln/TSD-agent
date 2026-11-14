@@ -155,3 +155,101 @@ fn safe_write_path_allows_new_files_and_rejects_escapes() {
     let _ = fs::remove_dir_all(&root);
 }
 
+
+#[test]
+fn toolbox_rejects_escaping_paths_and_dangerous_commands() {
+    use crate::toolbox::{glob_match, Toolbox};
+    let root = temp_dir("toolbox");
+    fs::write(root.join("a.txt"), "hello\n").unwrap();
+    let mut box_ = Toolbox::new(&root, true, 4000);
+    assert!(glob_match("**/*", "a.txt"));
+    assert!(glob_match("*.txt", "a.txt"));
+    assert!(!glob_match("*.md", "a.txt"));
+
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+    runtime.block_on(async {
+        let escape = box_
+            .call("read_file", &serde_json::json!({ "path": "../outside.txt" }))
+            .await;
+        assert!(!escape.ok, "越界路径必须拒绝：{}", escape.content);
+        let blocked = box_
+            .call("run_command", &serde_json::json!({ "command": "sudo rm -rf /" }))
+            .await;
+        assert!(!blocked.ok, "危险命令必须拒绝：{}", blocked.content);
+        let not_allowed = box_
+            .call("run_command", &serde_json::json!({ "command": "curl http://example.com" }))
+            .await;
+        assert!(!not_allowed.ok, "白名单外命令必须拒绝：{}", not_allowed.content);
+
+        let edit = box_
+            .call(
+                "edit_file",
+                &serde_json::json!({ "path": "a.txt", "old_string": "hello", "new_string": "hello world" }),
+            )
+            .await;
+        assert!(edit.ok, "沙箱内编辑应成功：{}", edit.content);
+        assert_eq!(fs::read_to_string(root.join("a.txt")).unwrap(), "hello world\n");
+        assert_eq!(box_.changed_files.len(), 1);
+
+        let missing = box_
+            .call(
+                "edit_file",
+                &serde_json::json!({ "path": "a.txt", "old_string": "not-there", "new_string": "x" }),
+            )
+            .await;
+        assert!(!missing.ok, "old_string 不匹配要给出提示：{}", missing.content);
+        assert!(missing.content.contains("未找到完全一致的 old_string"));
+    });
+
+    let mut disabled = Toolbox::new(&root, false, 4000);
+    runtime.block_on(async {
+        let denied = disabled
+            .call("run_command", &serde_json::json!({ "command": "node -v" }))
+            .await;
+        assert!(!denied.ok, "关闭命令执行后要拦截");
+    });
+    let _ = fs::remove_dir_all(&root);
+}
+
+#[test]
+fn agent_parses_json_protocol_and_repo_map_lists_symbols() {
+    use crate::repomap::{build_repo_map, detect_commands, extract_symbols};
+    let root = temp_dir("repomap");
+    fs::create_dir_all(root.join("src")).unwrap();
+    fs::write(
+        root.join("src/index.ts"),
+        "export function createOrder(id: string) {}\nexport class OrderRepo {}\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("package.json"),
+        "{\n  \"name\": \"demo\",\n  \"version\": \"1.0.0\",\n  \"scripts\": { \"test\": \"node -e 0\" }\n}\n",
+    )
+    .unwrap();
+
+    let symbols = extract_symbols(
+        "src/index.ts",
+        "export function createOrder() {}\nexport class OrderRepo {}\n",
+        10,
+    );
+    assert!(symbols.contains(&"createOrder".to_string()), "符号抽取：{symbols:?}");
+    assert!(symbols.contains(&"OrderRepo".to_string()));
+
+    let map = build_repo_map(&root, 4000, 100);
+    assert!(map.contains("仓库共"), "地图要有头部：{map}");
+    assert!(map.contains("src/index.ts"), "地图要列出文件：{map}");
+
+    let (test, _, _) = detect_commands(&root);
+    assert_eq!(test.as_deref(), Some("npm run test"), "探测 package.json 测试命令");
+
+    // 模型可能把 JSON 包在围栏里：抓对象时必须容忍
+    let fence = "\u{60}\u{60}\u{60}";
+    let raw = format!("{fence}json\n{{\"tool\":\"read_file\",\"args\":{{\"path\":\"a\"}}}}\n{fence}");
+    let parsed = crate::llm::parse_json_object(&raw).expect("围栏内的 JSON 也要能解析");
+    assert_eq!(parsed["tool"], serde_json::json!("read_file"));
+    let _ = fs::remove_dir_all(&root);
+}
+

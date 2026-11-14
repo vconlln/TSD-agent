@@ -27,7 +27,7 @@ Agent 类后端有两类代码：
 | **L2 运行与事件流** | `POST/PATCH/DELETE /projects`、`POST /projects/:id/run`、`GET /runs`、`GET /runs/:id`、`POST /runs/:id/cancel`、`GET /runs/:id/events`（SSE） | ✅ **已完成** | `contract-check --no-chat` 必需项 **27/27** |
 | **L3 对话与提案** | `POST /projects/:id/chat` + `chat.delta/reasoning/tool/message` + `POST/DELETE /projects/:id/apply` + `GET/PUT /settings` | ✅ **已完成** | `contract-check` 必需项 **30/30**；`run_chat_e2e --backend rust` **25/25** |
 | **L4 Git 与凭证** | `/api/git/*`、`/api/auth/w3/*`、`/api/models`、`files/write`、`search`、`export`、`agent/edit｜explain` | ✅ **已完成** | `run_git_e2e --backend rust` **37/37** |
-| **L5 Agent 循环** | 工具沙箱、验证循环、提示词、模型协议 | ⏳ | `run_agent_e2e` 的 23 项断言 |
+| **L5 Agent 循环** | 工具沙箱、验证循环、提示词外置热重载、两种模型协议 | ✅ **已完成** | `run_agent_e2e --backend rust` **23/23** |
 
 ---
 
@@ -83,7 +83,8 @@ npm run rust:check:l2      # L2：加上运行与 SSE，27/27
 npm run rust:check         # L3：再加对话与提案，30/30
 npm run rust:e2e:chat      # L3 深度：同一套 25 项断言跑 Rust 后端
 npm run rust:e2e:git       # L4 深度：Git + W3 + 编辑器 AI，37 项断言
-npm run rust:e2e:all       # 上面两个一起跑
+npm run rust:e2e:agent     # L5 深度：工具循环 + JSON 降级 + 沙箱，23 项断言
+npm run rust:e2e:all       # 上面三个一起跑
 ```
 
 ---
@@ -209,4 +210,40 @@ canonicalize 失败会被静默跳过（接口返回 200 但 `files: []`）。�
 
 `agent/edit`、`agent/explain` 是「单轮、无工具、有明确降级」的调用，接上 `llm.rs` 就能跑通；
 真正需要单独一层的是**多步工具循环**（L5）：步数预算、观察截断、验证命令、失败重试，那些才是易变部分。
+
+
+---
+
+## L5 实测（2026-11）
+
+| 项 | 结果 |
+| --- | --- |
+| `run_agent_e2e --backend rust` | **23/23** 断言全绿 |
+| 工具协议 | `read_file` → `edit_file` → `run_tests` → `finish`，`agent.thought` 4 段、`agent.verify` 1 次且通过，`code` 步骤带 `{"工具调用": 4, "改动文件": 1}` |
+| JSON 协议降级 | 不支持的网关（对 tools 返回 400）自动切到「只输出一个 JSON 对象」，`read_file`/`write_file` 照样跑通 |
+| 沙箱 | 越界路径、`sudo`、白名单外命令、关闭命令执行四种情况全部拒绝；`old_string` 不匹配时给出可操作提示 |
+| 落盘 | 7 个步骤全部 done 且持久化，`code` 步骤 metrics 落到 run.json |
+| 单元测试 | **12 个**（新增沙箱四拒绝 + 符号抽取/命令探测/围栏 JSON 解析） |
+
+### L5 的实现要点
+
+- **两种协议**：`tools`（OpenAI function calling）优先，网关不支持就自动切 `json`；
+  切换时重建 system 消息，避免模型看到旧协议说明。
+- **工具集**（`toolbox.rs`）：`list_files` / `read_file` / `grep` / `edit_file` / `write_file` /
+  `delete_file` / `run_command` / `run_tests` / `finish`；路径全部落在目标目录内，
+  命令走白名单 + 13 条危险模式拒绝 + 超时（`kill_on_drop`），输出有字符上限。
+- **自我纠错**：工具结果作为观察回喂；验证失败会把错误输出塞回对话并再给 2 轮；
+  上下文超过 12 万字符或 40 条消息时压缩中间部分（保留首尾）。
+- **提示词外置 + 热重载**（`prompts.rs`）：从 `TSD_PROMPTS_DIR` → `<exe>/prompts` →
+  `rust-backend/prompts/*.md` 依次查找，按 mtime 自动重载，读不到用内置默认。
+  改一句提示词不需要重新编译——这是当初设计里写死的约束。
+- **降级链**：Agent 模式 → 一次性 JSON 生成 → 离线确定性规则，任何一步失败都不会让流水线中断。
+
+### 迁移结束后的分工建议
+
+| 谁 | 职责 |
+| --- | --- |
+| Rust 后端 | 生产运行时唯一常驻进程：HTTP/SSE、流水线、Agent、Git、凭证 |
+| Python 参照实现 | 契约与行为的「标准答案」：新功能先在 Python 侧补 e2e，再迁到 Rust 并跑同一套断言 |
+| `scripts/contract-check.mjs` + `scripts/e2e/*.py --backend rust` | 每次改动都必须同时绿的验收闸门 |
 

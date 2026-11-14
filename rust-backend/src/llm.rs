@@ -394,7 +394,7 @@ impl Llm {
 }
 
 /// 从模型输出里抓第一个 JSON 对象（容忍代码围栏与前后说明文字）
-fn parse_json_object(text: &str) -> Option<Value> {
+pub fn parse_json_object(text: &str) -> Option<Value> {
     let trimmed = text.trim();
     if let Ok(value) = serde_json::from_str::<Value>(trimmed) {
         if value.is_object() {

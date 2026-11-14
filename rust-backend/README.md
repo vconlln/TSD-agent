@@ -4,7 +4,7 @@ TSD Agent 的 **Rust 后端**（按契约分层迁移，已完成第 1~3 层）�
 
 前端一行都不用改：它只认 `docs/BACKEND-INTEGRATION.md` 里的 HTTP + SSE 契约。
 
-## 当前覆盖（第 1~4 层）
+## 当前覆盖（全 5 层）
 
 | 接口 | 状态 |
 | --- | --- |
@@ -29,7 +29,7 @@ TSD Agent 的 **Rust 后端**（按契约分层迁移，已完成第 1~3 层）�
 | `/api/projects/:id/git/{clone,status,branches,compare,publish,push}` | ✅（保留 `.git`、只同步差异文件、令牌注入 https 推送） |
 | `/api/projects/:id/{files/write,search,export}` | ✅（写入即刷新差异；导出 zip 含 plan + diff + code） |
 | `/api/projects/:id/agent/{edit,explain}` | ✅（无模型时解释走结构化静态分析、修改明确拒绝） |
-| 其余（agent 多步工具循环） | ⏳ 第 5 层 |
+| Agent 多步工具循环（流水线 `code` 步骤） | ✅（两种协议：function calling / JSON 降级；工具沙箱；验证重试；步数与时长预算） |
 
 ## 运行
 
@@ -64,7 +64,22 @@ node ../scripts/contract-check.mjs --api http://127.0.0.1:8801                # 
 python ../scripts/e2e/run_chat_e2e.py                 # Python 参照后端
 python ../scripts/e2e/run_chat_e2e.py --backend rust  # Rust 后端，25 项断言
 python ../scripts/e2e/run_git_e2e.py --backend rust   # Git + W3 + 编辑器 AI，37 项断言
+python ../scripts/e2e/run_agent_e2e.py --backend rust  # Agent 工具循环 + 沙箱，23 项断言
 ```
+
+## 提示词外置（热重载）
+
+`prompts/` 下的 markdown 是运行时读取的，**改完保存即生效，不需要重新编译**：
+
+| 文件 | 用途 |
+| --- | --- |
+| `prompts/agent.md` | 流水线 `code` 步骤的 Agent 系统提示词 |
+| `prompts/chat.md` | 对话 Agent 系统提示词 |
+| `prompts/inline-edit.md` / `prompts/inline-explain.md` | 编辑器内 AI 修改 / 解释 |
+| `prompts/coder.md` | 一次性生成代码改动（Agent 不可用时的兜底） |
+
+查找顺序：`TSD_PROMPTS_DIR` → `<可执行文件同级>/prompts` → 源码树 `rust-backend/prompts`；
+都找不到时回落到内置默认（编译进二进制，作为最后一道保险）。
 
 ## 设计取舍
 

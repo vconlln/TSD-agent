@@ -198,20 +198,109 @@ impl Pipeline {
         if self.stopped() {
             return self.finish_cancelled("code");
         }
-        let changed = match apply_changes(&source_dir, &target_dir, &project, &prompt, &plan_text) {
-            Ok(changed) => changed,
-            Err(error) => {
-                self.fail("code", &error);
-                return json!({ "status": "failed" });
+        // 先把基础代码复制到 v{version} 目录，之后的改动都发生在这里
+        let _ = fs::remove_dir_all(&target_dir);
+        if let Err(error) = copy_tree(&source_dir, &target_dir) {
+            self.fail("code", &error);
+            return json!({ "status": "failed" });
+        }
+        let copied = crate::store::walk_files(&target_dir).len();
+        self.channel
+            .log("info", &format!("已复制 {copied} 个文件到目标目录"), Some("code"));
+
+        let settings = crate::settings::load(&self.state.workspace);
+        let config = crate::llm::LlmConfig::from_settings(&settings);
+        let online = config.available();
+        let agent_mode = settings
+            .get("agent")
+            .and_then(|agent| agent.get("mode"))
+            .and_then(Value::as_str)
+            .unwrap_or("auto")
+            .to_string();
+
+        let mut written = 0usize;
+        let mut tool_calls = 0u64;
+        let mut agent_used = false;
+        let project_name = project.get("name").and_then(Value::as_str).unwrap_or("项目");
+        let base_version = project.get("baseVersion").and_then(Value::as_str).unwrap_or("1.0.0");
+        let target_version = project
+            .get("targetVersion")
+            .and_then(Value::as_str)
+            .unwrap_or("1.1.0");
+
+        if online && agent_mode != "single" {
+            self.channel.log(
+                "info",
+                "进入 Agent 模式：读代码 → 改代码 → 跑验证（每步可见）",
+                Some("code"),
+            );
+            let task = format!(
+                "项目「{project_name}」当前版本 v{base_version}，目标版本 v{target_version}。\n                 请按照升级方案改造当前目录里的代码。核心需求：\n{}\n\n                 要求：先读懂现有实现再改；保持既有代码风格与接口兼容；                 改完运行测试/类型检查；最后用 finish 总结改动。",
+                prompt.trim()
+            );
+            let llm = crate::llm::Llm::new(config.clone());
+            let mut agent = crate::agent::CodeAgent::new(
+                &llm,
+                self.channel.clone(),
+                crate::agent::AgentConfig::from_settings(&settings),
+                self.cancel.clone(),
+            );
+            let result = agent.run(&task, &target_dir, &update_doc).await;
+            written = result
+                .get("changedFiles")
+                .and_then(Value::as_array)
+                .map(|files| files.len())
+                .unwrap_or(0);
+            tool_calls = result.get("toolCalls").and_then(Value::as_u64).unwrap_or(0);
+            agent_used = written > 0;
+            if written == 0 {
+                self.channel
+                    .log("warn", "Agent 未产生改动，回退到一次性生成", Some("code"));
             }
-        };
-        self.channel.log("info", &format!("离线改动完成：{} 个文件", changed), Some("code"));
+        }
+
+        if written == 0 && online {
+            match one_shot_edits(&self.state.workspace, &target_dir, &project, &prompt, &update_doc, &inventory).await {
+                Ok(count) => {
+                    written += count;
+                    if count > 0 {
+                        self.channel
+                            .log("info", &format!("模型一次性给出 {count} 个文件改动"), Some("code"));
+                    }
+                }
+                Err(error) => {
+                    self.channel
+                        .log("warn", &format!("模型改动请求失败，使用离线规则：{error}"), Some("code"));
+                }
+            }
+        }
+
+        if written == 0 {
+            let changed = match apply_changes(&source_dir, &target_dir, &project, &prompt, &plan_text) {
+                Ok(changed) => changed,
+                Err(error) => {
+                    self.fail("code", &error);
+                    return json!({ "status": "failed" });
+                }
+            };
+            written = changed;
+            self.channel
+                .log("info", &format!("应用离线规则生成 {} 个文件改动", changed), Some("code"));
+        }
+
+        let mut metrics = json!({ "改动文件": written });
+        if agent_used {
+            metrics["工具调用"] = json!(tool_calls);
+        }
         self.emit_step(
             "code",
             "done",
-            Some(format!("改动 {} 个文件", changed)),
+            Some(format!(
+                "写入 {written} 个文件{}",
+                if agent_used { " · Agent 模式" } else { "" }
+            )),
             Some(82),
-            Some(json!({ "改动文件": changed })),
+            Some(metrics),
         );
 
         // ---------------- 6. diff ----------------
@@ -662,3 +751,56 @@ fn bump_package_version(text: &str, version: &str) -> Option<String> {
     result.push_str(&rest[open + 1 + close..]);
     Some(result)
 }
+
+/// 一次性生成：模型直接返回若干文件的最终内容（Agent 不可用或没改动时的兜底）
+async fn one_shot_edits(
+    workspace: &Path,
+    target_dir: &Path,
+    project: &Value,
+    prompt: &str,
+    update_doc: &str,
+    inventory: &Inventory,
+) -> Result<usize, String> {
+    let config = crate::llm::LlmConfig::from_workspace(workspace);
+    if !config.available() {
+        return Ok(0);
+    }
+    let llm = crate::llm::Llm::new(config);
+    let files = crate::store::walk_files(target_dir);
+    let file_list: Vec<String> = files.keys().take(220).cloned().collect();
+    let name = project.get("name").and_then(Value::as_str).unwrap_or("项目");
+    let target_version = project
+        .get("targetVersion")
+        .and_then(Value::as_str)
+        .unwrap_or("1.1.0");
+    let messages = vec![
+        json!({ "role": "system", "content": crate::prompts::get("coder") }),
+        json!({
+            "role": "user",
+            "content": format!(
+                "项目：{name}\\n目标版本：v{target_version}\\n\\n## 升级需求\\n{}\\n\\n## 升级方案（节选）\\n{}\\n\\n## 代码库概况\\n{}\\n\\n## 可修改文件\\n{}\\n\\n## 任务\\n基于升级方案，产出 1-6 个文件的最终内容（可以是新文件，例如 docs/UPGRADE_NOTES.md、迁移脚本或测试）。只修改与需求直接相关的实现，保持项目原有风格。\\n输出严格 JSON：\\n{{\"summary\":\"一句话总结\",\"rationale\":\"简短说明\",\"edits\":[{{\"path\":\"相对路径\",\"content\":\"完整文件内容\",\"reason\":\"修改原因\"}}]}}",
+                prompt.trim(),
+                update_doc.chars().take(3500).collect::<String>(),
+                inventory.summary,
+                file_list.join("\n")
+            ),
+        }),
+    ];
+    let payload = llm
+        .chat_json(&messages, 8000, 0.2)
+        .await?
+        .ok_or_else(|| "模型未返回可解析的 JSON".to_string())?;
+    let mut written = 0usize;
+    if let Some(edits) = payload.get("edits").and_then(Value::as_array) {
+        for edit in edits.iter().take(8) {
+            let Some(rel) = edit.get("path").and_then(Value::as_str) else { continue };
+            let Some(content) = edit.get("content").and_then(Value::as_str) else { continue };
+            let Some(path) = crate::state::safe_write_path(target_dir, rel.trim()) else { continue };
+            if std::fs::write(&path, content).is_ok() {
+                written += 1;
+            }
+        }
+    }
+    Ok(written)
+}
+
