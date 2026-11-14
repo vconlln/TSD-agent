@@ -112,7 +112,8 @@ npm run dist:win
 | `PyInstaller` 报缺 hiddenimports | 已在 `server/tsd_server.spec` 用 `collect_submodules('uvicorn')` 覆盖；自定义依赖请补到 spec |
 | 安装包很大（>200MB） | 正常：Electron + Python 运行时。onedir 已比 onefile 小且启动快 |
 | 启动后提示「无法连接后端」 | 打开设置看后端状态与日志尾部；确认 `resources/backend/tsd-server/tsd-server.exe` 存在；也可在设置里指定 `pythonPath` |
-| 杀毒软件误报 | PyInstaller 产物常见误报，需自行做代码签名（`win.signtoolOptions` 可配置证书） |
+| 杀毒软件误报 | PyInstaller 产物常见误报，解决方式是**代码签名**，详见 [SIGNING.md](SIGNING.md) |
+| SmartScreen 提示「未知发布者」 | 安装包未签名。内网用公司内部 CA（0 元），对外用 EV 或 Azure Trusted Signing，命令已接好：见 [SIGNING.md](SIGNING.md) |
 | 用户机器没有 WebView2 | 不受影响：Electron 自带 Chromium |
 
 ---

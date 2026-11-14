@@ -26,7 +26,19 @@
  *   --out dir                产物目录（默认 release）
  */
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import {
+  closeSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readdirSync,
+  readSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -45,6 +57,8 @@ function parseArgs(argv) {
     skipRenderer: false,
     verify: false,
     out: 'release',
+    signCmd: process.env.TSD_SIGN_CMD || '',
+    requireSignature: false,
   }
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]
@@ -65,11 +79,56 @@ function parseArgs(argv) {
       case '--skip-renderer': options.skipRenderer = true; break
       case '--verify': options.verify = true; break
       case '--out': options.out = next(); break
+      case '--sign-cmd': options.signCmd = next(); break
+      case '--require-signature': options.requireSignature = true; break
       case '--help': case '-h': options.help = true; break
       default: throw new Error('未知参数：' + arg)
     }
   }
   return options
+}
+
+/**
+ * electron-builder 自带的 Linux osslsigncode 是 2020 年编译的，链接 libcrypto.so.1.1；
+ * 新发行版只剩 OpenSSL 3，直接跑会 `error while loading shared libraries`。
+ * 这里找一找系统里有没有 1.1（很多机器被 Steam / 旧运行时带着），有就临时挂上。
+ */
+function libcrypto11Dir() {
+  const probe = spawnSync('bash', ['-c', 'ldconfig -p 2>/dev/null | grep -c "libcrypto\\.so\\.1\\.1" || true'])
+  if (probe.stdout && Number(String(probe.stdout).trim()) > 0) return null // 系统自带，不用管
+  const home = process.env.HOME || ''
+  const candidates = [
+    '/usr/lib',
+    '/usr/lib64',
+    '/usr/lib/x86_64-linux-gnu',
+    '/lib/x86_64-linux-gnu',
+    path.join(home, '.local/share/Steam/steamrt64'),
+  ]
+  const found = []
+  const walk = (dir, depth) => {
+    if (depth > 6 || found.length) return
+    let entries
+    try {
+      entries = readdirSync(dir)
+    } catch {
+      return
+    }
+    if (entries.includes('libcrypto.so.1.1')) {
+      found.push(dir)
+      return
+    }
+    for (const entry of entries) {
+      if (entry.startsWith('.')) continue
+      const full = path.join(dir, entry)
+      try {
+        if (statSync(full).isDirectory()) walk(full, depth + 1)
+      } catch {
+        /* 跳过 */
+      }
+    }
+  }
+  for (const dir of candidates) walk(dir, 0)
+  return found[0] || null
 }
 
 /** 构建期统一的环境：镜像 / 缓存 / Wine 前缀（都已 gitignore 在 build-tools 下） */
@@ -93,6 +152,13 @@ function buildEnv() {
   if (!process.env.ELECTRON_BUILDER_7ZIP_PATH && existsSync('/usr/bin/7za')) {
     env.ELECTRON_BUILDER_7ZIP_PATH = '/usr/bin/7za'
   }
+  // 只在真的要签名时才需要（electron-builder 的 osslsigncode 依赖 OpenSSL 1.1）
+  if ((process.env.WIN_CSC_LINK || process.env.CSC_LINK) && process.platform !== 'win32') {
+    const dir = libcrypto11Dir()
+    if (dir) {
+      env.LD_LIBRARY_PATH = [dir, process.env.LD_LIBRARY_PATH].filter(Boolean).join(':')
+    }
+  }
   mkdirSync(env.TMPDIR, { recursive: true })
   return env
 }
@@ -110,6 +176,67 @@ function run(command, args, { cwd = ROOT, env = {}, label } = {}) {
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'))
+}
+
+/**
+ * 读 PE 文件的 Authenticode 签名（只读头部，不解析证书链，跨平台可用）。
+ * 返回 { signed, size, offset }，用于构建后自检「签上了没有」。
+ */
+function peSignature(file) {
+  try {
+    const fd = openSync(file, 'r')
+    try {
+      const head = Buffer.alloc(4096)
+      readSync(fd, head, 0, head.length, 0)
+      if (head.toString('ascii', 0, 2) !== 'MZ') return { signed: false, size: 0 }
+      const peOffset = head.readUInt32LE(0x3c)
+      if (head.toString('ascii', peOffset, peOffset + 4) !== 'PE\0\0') return { signed: false, size: 0 }
+      const coff = peOffset + 4
+      const optionalHeaderSize = head.readUInt16LE(coff + 16)
+      const optional = coff + 20
+      const magic = head.readUInt16LE(optional)
+      // data directory 从 optional header + 96 (PE32) / +112 (PE32+) 开始，第 5 项是 Certificate Table
+      const dataDir = optional + (magic === 0x20b ? 112 : 96)
+      const certEntry = dataDir + 4 * 8
+      if (certEntry + 8 > head.length) return { signed: false, size: 0 }
+      const offset = head.readUInt32LE(certEntry)
+      const size = head.readUInt32LE(certEntry + 4)
+      return { signed: size > 0, size, offset }
+    } finally {
+      closeSync(fd)
+    }
+  } catch {
+    return { signed: false, size: 0 }
+  }
+}
+
+/** 外部签名命令模板：{file} 会被替换成待签文件路径 */
+function signWithCommand(template, file) {
+  const command = template.replaceAll('{file}', file)
+  console.log('\n▸ 签名 ' + path.relative(ROOT, file))
+  console.log('  ' + command)
+  const result = spawnSync(command, { shell: true, stdio: 'inherit', env: { ...process.env, ...buildEnv() } })
+  if (result.status !== 0) throw new Error('签名失败（退出码 ' + result.status + '）：' + command)
+  const info = peSignature(file)
+  if (!info.signed) throw new Error('签名命令执行完了，但文件里没有 Authenticode 签名：' + file)
+  console.log('  ✓ 已签名（' + Math.round(info.size / 1024) + ' KB 签名块）')
+}
+
+/** 说明当前处于哪种签名模式（只打印，真正的签名交给对应工具） */
+function describeSigning(options) {
+  const pfx = process.env.WIN_CSC_LINK || process.env.CSC_LINK
+  if (pfx) {
+    const name = pfx.startsWith('data:') ? '(base64)' : pfx
+    return 'PFX 证书（' + name + '）→ electron-builder 内置 signtool'
+  }
+  if (process.env.AZURE_SIGN_ENDPOINT) {
+    return 'Azure Trusted Signing（需 Windows 上的 Invoke-TrustedSigning 模块）'
+  }
+  if (options.signCmd) return '外部命令：' + options.signCmd
+  if (options.requireSignature) {
+    throw new Error('--require-signature 需要证书：设置 WIN_CSC_LINK/WIN_CSC_KEY_PASSWORD 或传 --sign-cmd')
+  }
+  return '未配置（产出的 exe 是未签名的，SmartScreen 会提示）'
 }
 
 function prepareBundledResources(options) {
@@ -301,6 +428,7 @@ function main() {
     return
   }
 
+  options.startedAt = Date.now()
   const pkgFile = path.join(ROOT, 'package.json')
   const originalPkg = readFileSync(pkgFile, 'utf8')
   const pkg = JSON.parse(originalPkg)
@@ -314,6 +442,17 @@ function main() {
     buildBackend(options, collectExtraRequirements(options))
 
     stageRustBackend(options)
+
+    console.log('  签名模式：' + describeSigning(options))
+    if (options.signCmd) {
+      // 内置后端是 extraResources，electron-builder 不会替它签名
+      for (const candidate of [
+        path.join(ROOT, 'backend-dist', 'tsd-server', 'tsd-server.exe'),
+        path.join(ROOT, 'backend-dist', 'tsd-server-rs', 'tsd-server-rs.exe'),
+      ]) {
+        if (existsSync(candidate)) signWithCommand(options.signCmd, candidate)
+      }
+    }
 
     console.log('==> 3/5 构建前端')
     if (options.skipRenderer) {
@@ -347,6 +486,30 @@ function main() {
     ], { label: 'electron-builder ' + options.target })
 
     if (options.verify) verifyArtifact(options, outDir)
+
+    // 产物签名：只处理本次构建新生成的 exe（release 里常有历史版本，不能一起校验）
+    const buildStartedAt = options.startedAt
+    const installers = readdirSync(outDir)
+      .filter((name) => /\.exe$/i.test(name) && !name.includes('uninstaller'))
+      .map((name) => path.join(outDir, name))
+      .filter((file) => {
+        try {
+          return statSync(file).mtimeMs >= buildStartedAt - 5000
+        } catch {
+          return false
+        }
+      })
+    if (options.signCmd) {
+      for (const file of installers) signWithCommand(options.signCmd, file)
+    }
+    for (const file of installers) {
+      const info = peSignature(file)
+      const mark = info.signed ? '✓ 已签名' : '· 未签名'
+      console.log('  ' + mark + '：' + path.basename(file) + (info.signed ? '（' + Math.round(info.size / 1024) + ' KB）' : ''))
+      if (options.requireSignature && !info.signed) {
+        throw new Error('要求签名但产物未签名：' + path.basename(file))
+      }
+    }
 
     console.log('==> 5/5 汇总')
     const artifacts = []

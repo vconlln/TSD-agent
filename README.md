@@ -228,6 +228,10 @@ bash scripts/build-windows-on-linux.sh --verify
 工具链与缓存都落在 `build-tools/`（已 gitignore）。原理与踩坑见
 [docs/PACKAGING.md](docs/PACKAGING.md)。
 
+> 装的时候弹「未知发布者」是因为安装包没做代码签名。
+> 怎么签（内网 CA 0 元 / Azure / EV 三种方案 + 已接好的命令）见
+> [docs/SIGNING.md](docs/SIGNING.md)。
+
 ### 方式三：内网定制打包（加依赖 / 加资源 / 预置网关）
 
 后续要在内网加东西（内部 SDK、证书、预置网关地址），用同一个入口，不用改配置：
