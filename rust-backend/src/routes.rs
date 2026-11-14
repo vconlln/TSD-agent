@@ -3,18 +3,22 @@ use std::{path::Path, sync::Arc};
 use axum::{
     extract::{Path as AxumPath, Query, State},
     http::StatusCode,
-    response::IntoResponse,
-    routing::get,
+    response::{
+        sse::{Event as SseEvent, KeepAlive, Sse},
+        IntoResponse,
+    },
+    routing::{delete, get, patch, post},
     Json, Router,
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::{
-    diff, state,
+    diff, events, pipeline, projects, runs, state,
     state::AppState,
     store,
 };
+use std::sync::atomic::{AtomicBool, Ordering};
 
 type ApiResult = Result<Json<Value>, ApiError>;
 
@@ -45,6 +49,14 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/projects/{id}/diff", get(project_diff))
         .route("/api/projects/{id}/tree", get(project_tree))
         .route("/api/projects/{id}/file", get(project_file))
+        .route("/api/projects", post(create_project))
+        .route("/api/projects/{id}", patch(patch_project))
+        .route("/api/projects/{id}", delete(delete_project))
+        .route("/api/projects/{id}/run", post(start_run))
+        .route("/api/runs", get(list_runs))
+        .route("/api/runs/{id}", get(get_run))
+        .route("/api/runs/{id}/cancel", post(cancel_run))
+        .route("/api/runs/{id}/events", get(run_events))
         .with_state(state)
 }
 
@@ -353,4 +365,320 @@ async fn project_file(
         "truncated": truncated,
         "binary": false,
     })))
+}
+
+// ======================================================================
+// L2：项目写接口 + 运行 + SSE 事件流
+// ======================================================================
+
+#[derive(Deserialize)]
+struct CreateProjectBody {
+    name: String,
+    #[serde(default)]
+    #[serde(rename = "sourceUrl")]
+    source_url: Option<String>,
+    #[serde(default)]
+    #[serde(rename = "sourceKind")]
+    source_kind: Option<String>,
+    #[serde(default)]
+    #[serde(rename = "targetVersion")]
+    target_version: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
+}
+
+async fn create_project(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<CreateProjectBody>,
+) -> ApiResult {
+    let name = body.name.trim();
+    if name.is_empty() {
+        return Err(bad_request("项目名不能为空"));
+    }
+    let project = projects::create(
+        &state.workspace,
+        name,
+        body.source_url.as_deref().unwrap_or(""),
+        body.source_kind.as_deref().unwrap_or("page"),
+        body.target_version.as_deref().unwrap_or(""),
+        body.description.as_deref().unwrap_or(""),
+    );
+    Ok(Json(project))
+}
+
+async fn patch_project(
+    State(state): State<Arc<AppState>>,
+    AxumPath(id): AxumPath<String>,
+    Json(patch): Json<Value>,
+) -> ApiResult {
+    match projects::patch(&state.workspace, &id, &patch) {
+        Some(project) => Ok(Json(project)),
+        None => Err(not_found("项目不存在")),
+    }
+}
+
+async fn delete_project(
+    State(state): State<Arc<AppState>>,
+    AxumPath(id): AxumPath<String>,
+) -> impl IntoResponse {
+    if projects::delete(&state.workspace, &id) {
+        StatusCode::NO_CONTENT
+    } else {
+        StatusCode::NOT_FOUND
+    }
+}
+
+#[derive(Deserialize)]
+struct StartRunBody {
+    #[serde(default)]
+    #[serde(rename = "upgradeRequest")]
+    upgrade_request: Option<String>,
+    #[serde(default)]
+    #[serde(rename = "targetVersion")]
+    target_version: Option<String>,
+    #[serde(default)]
+    #[serde(rename = "referenceUrl")]
+    reference_url: Option<String>,
+}
+
+async fn start_run(
+    State(state): State<Arc<AppState>>,
+    AxumPath(id): AxumPath<String>,
+    Json(body): Json<StartRunBody>,
+) -> ApiResult {
+    let Some(project) = load_project(&state, &id) else {
+        return Err(not_found("项目不存在"));
+    };
+
+    // 同一个项目同时只允许一个运行
+    let existing = runs::list_runs(&state.project_dir(&id));
+    if existing.iter().any(|run| run.status == "running") {
+        return Err(ApiError(StatusCode::CONFLICT, "该项目已有正在执行的任务".to_string()));
+    }
+
+    let target_version = body
+        .target_version
+        .as_deref()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .or_else(|| project.get("targetVersion").and_then(Value::as_str).map(|s| s.to_string()))
+        .unwrap_or_else(|| "1.1.0".to_string());
+
+    let mut project = project;
+    if let Some(object) = project.as_object_mut() {
+        object.insert("targetVersion".to_string(), json!(target_version));
+        object.insert("status".to_string(), json!("running"));
+        object.insert("updatedAt".to_string(), json!(events::now_ms()));
+    }
+    let _ = projects::save(&state.workspace, &project);
+
+    let prompt = body
+        .upgrade_request
+        .clone()
+        .or_else(|| body.reference_url.clone())
+        .unwrap_or_default();
+    let mut run = runs::Run::new(&id, "upgrade", &prompt);
+    run.model = Some("offline".to_string());
+    let project_dir = state.project_dir(&id);
+    let _ = runs::save_run(&project_dir, &run);
+
+    let channel = state
+        .hub
+        .create(&run.id, Some(state.events_path(&id, &run.id)));
+    channel.emit(
+        "run.status",
+        Some(json!({ "status": "running" })),
+    );
+
+
+    let cancel = Arc::new(AtomicBool::new(false));
+    if let Ok(mut map) = state.cancels.lock() {
+        map.insert(run.id.clone(), cancel.clone());
+    }
+
+    let pipeline = pipeline::Pipeline {
+        state: state.clone(),
+        channel: channel.clone(),
+        run: run.clone(),
+        cancel,
+    };
+    let project_for_task = project.clone();
+    let prompt_for_task = prompt.clone();
+    let target_for_task = run.project_id.is_empty().then(String::new).unwrap_or_default();
+    let _ = target_for_task;
+    let target_version_for_task = project
+        .get("targetVersion")
+        .and_then(Value::as_str)
+        .unwrap_or("1.1.0")
+        .to_string();
+    tokio::spawn(async move {
+        pipeline
+            .run_upgrade(project_for_task, prompt_for_task, target_version_for_task)
+            .await;
+    });
+
+    Ok(Json(json!({ "runId": run.id, "run": run })))
+}
+
+#[derive(Deserialize)]
+struct RunsQuery {
+    #[serde(default)]
+    #[serde(rename = "projectId")]
+    project_id: Option<String>,
+}
+
+async fn list_runs(
+    State(state): State<Arc<AppState>>,
+    Query(query): Query<RunsQuery>,
+) -> ApiResult {
+    let Some(project_id) = query.project_id else {
+        return Err(bad_request("缺少 projectId"));
+    };
+    if load_project(&state, &project_id).is_none() {
+        return Err(not_found("项目不存在"));
+    }
+    let runs = runs::list_runs(&state.project_dir(&project_id));
+    Ok(Json(json!({ "runs": runs })))
+}
+
+async fn get_run(
+    State(state): State<Arc<AppState>>,
+    AxumPath(run_id): AxumPath<String>,
+) -> ApiResult {
+    if let Some(channel) = state.hub.get(&run_id) {
+        let _ = channel;
+    }
+    for project_id in store::list_project_ids(&state.projects_dir()) {
+        if let Some(run) = runs::load_run(&state.project_dir(&project_id), &run_id) {
+            return Ok(Json(serde_json::to_value(run).unwrap_or_else(|_| json!({}))));
+        }
+    }
+    Err(not_found("运行记录不存在"))
+}
+
+async fn cancel_run(
+    State(state): State<Arc<AppState>>,
+    AxumPath(run_id): AxumPath<String>,
+) -> ApiResult {
+    let flag = state
+        .cancels
+        .lock()
+        .ok()
+        .and_then(|map| map.get(&run_id).cloned());
+    match flag {
+        Some(flag) => {
+            flag.store(true, Ordering::SeqCst);
+            if let Some(channel) = state.hub.get(&run_id) {
+                channel.log("warn", "收到取消请求，正在收尾", None);
+            }
+            Ok(Json(json!({ "ok": true })))
+        }
+        None => Err(not_found("运行记录不存在或已结束")),
+    }
+}
+
+#[derive(Deserialize)]
+struct EventsQuery {
+    #[serde(default)]
+    since: Option<u64>,
+}
+
+
+
+async fn run_events(
+    State(state): State<Arc<AppState>>,
+    AxumPath(run_id): AxumPath<String>,
+    Query(query): Query<EventsQuery>,
+) -> axum::response::Response {
+    let since = query.since.unwrap_or(0);
+
+    let Some(channel) = state.hub.get(&run_id) else {
+        // 进程重启后内存通道没了：从 events.jsonl 回放
+        return replay_from_disk(&state, &run_id, since);
+    };
+
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<SseEvent, std::convert::Infallible>>();
+    tokio::spawn(async move {
+        let mut last = since;
+        let mut saw_terminal = false;
+        for event in channel.history_since(since) {
+            last = last.max(event.seq);
+            saw_terminal |= event.is_terminal();
+            if tx.send(Ok(to_sse(&event))).is_err() {
+                return;
+            }
+        }
+        if saw_terminal || channel.is_closed() {
+            let _ = tx.send(Ok(SseEvent::default().data("[DONE]")));
+            return;
+        }
+
+        let mut receiver = channel.subscribe();
+        loop {
+            match receiver.recv().await {
+                Ok(event) => {
+                    if event.seq <= last {
+                        continue;
+                    }
+                    last = event.seq;
+                    if tx.send(Ok(to_sse(&event))).is_err() {
+                        return;
+                    }
+                    if event.is_terminal() {
+                        let _ = tx.send(Ok(SseEvent::default().data("[DONE]")));
+                        return;
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(_) => {
+                    let _ = tx.send(Ok(SseEvent::default().data("[DONE]")));
+                    return;
+                }
+            }
+        }
+    });
+
+    Sse::new(tokio_stream::wrappers::UnboundedReceiverStream::new(rx))
+        .keep_alive(KeepAlive::new().interval(std::time::Duration::from_secs(15)))
+        .into_response()
+}
+
+fn to_sse(event: &events::Event) -> SseEvent {
+    let payload = serde_json::to_string(event).unwrap_or_else(|_| "{}".to_string());
+    SseEvent::default().data(payload)
+}
+
+fn replay_from_disk(state: &AppState, run_id: &str, since: u64) -> axum::response::Response {
+    let mut events: Vec<events::Event> = Vec::new();
+    let mut found = false;
+    for project_id in store::list_project_ids(&state.projects_dir()) {
+        let path = state.events_path(&project_id, run_id);
+        if !path.exists() {
+            continue;
+        }
+        found = true;
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            for line in text.lines() {
+                if let Ok(event) = serde_json::from_str::<events::Event>(line) {
+                    if event.seq > since {
+                        events.push(event);
+                    }
+                }
+            }
+        }
+        break;
+    }
+    if !found {
+        return ApiError(StatusCode::NOT_FOUND, "事件流不存在".to_string()).into_response();
+    }
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<SseEvent, std::convert::Infallible>>();
+    tokio::spawn(async move {
+        for event in events {
+            if tx.send(Ok(to_sse(&event))).is_err() {
+                return;
+            }
+        }
+        let _ = tx.send(Ok(SseEvent::default().data("[DONE]")));
+    });
+    Sse::new(tokio_stream::wrappers::UnboundedReceiverStream::new(rx)).into_response()
 }

@@ -1,9 +1,16 @@
 use std::{
+    collections::HashMap,
     path::{Path, PathBuf},
+    sync::{
+        atomic::AtomicBool,
+        Arc, Mutex,
+    },
     time::Instant,
 };
 
 use serde_json::Value;
+
+use crate::events::EventHub;
 
 /// 进程级共享状态：工作区路径、版本、启动时间。
 /// 与 Python 参照实现保持同一套目录约定，因此两种后端可以指向同一个 workspace。
@@ -11,6 +18,9 @@ pub struct AppState {
     pub workspace: PathBuf,
     pub version: String,
     pub started: Instant,
+    pub hub: EventHub,
+    /// runId -> 取消标记；流水线在每个阶段边界检查
+    pub cancels: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
 impl AppState {
@@ -19,6 +29,8 @@ impl AppState {
             workspace,
             version: env!("CARGO_PKG_VERSION").to_string(),
             started: Instant::now(),
+            hub: EventHub::default(),
+            cancels: Mutex::new(HashMap::new()),
         }
     }
 
@@ -48,6 +60,14 @@ impl AppState {
 
     pub fn diff_path(&self, id: &str) -> PathBuf {
         self.project_dir(id).join("diff.json")
+    }
+
+    pub fn runs_dir(&self, id: &str) -> PathBuf {
+        self.project_dir(id).join("runs")
+    }
+
+    pub fn events_path(&self, project_id: &str, run_id: &str) -> PathBuf {
+        self.runs_dir(project_id).join(format!("{}.events.jsonl", run_id))
     }
 
     /// 升级后的代码目录：projects/<id>/v<targetVersion>

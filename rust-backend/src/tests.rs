@@ -77,3 +77,57 @@ fn compute_diffs_detects_add_modify_delete_and_rename() {
     assert_eq!(result.stats.files_changed, 4);
     let _ = fs::remove_dir_all(&root);
 }
+// ------------------------- L2：事件中心与运行记录 -------------------------
+
+#[test]
+fn event_seq_is_monotonic_per_run_and_history_replays() {
+    use crate::events::RunChannel;
+    let channel = RunChannel::new("run-a", None);
+    let first = channel.emit("run.status", Some(serde_json::json!({ "status": "running" })));
+    let second = channel.emit("log", None);
+    assert_eq!(first.seq, 1);
+    assert_eq!(second.seq, 2);
+    assert!(second.seq > first.seq, "seq 必须单调递增");
+    assert_eq!(channel.history_since(0).len(), 2);
+    assert_eq!(channel.history_since(1).len(), 1, "since=N 只回放 seq > N");
+    assert_eq!(channel.history_since(2).len(), 0);
+}
+
+#[test]
+fn terminal_event_closes_the_channel() {
+    use crate::events::RunChannel;
+    let channel = RunChannel::new("run-b", None);
+    assert!(!channel.is_closed());
+    channel.emit("run.done", Some(serde_json::json!({ "summary": "ok" })));
+    assert!(channel.is_closed(), "run.done 之后通道应关闭");
+}
+
+#[test]
+fn run_steps_start_pending_and_record_status() {
+    use crate::runs::Run;
+    let mut run = Run::new("proj-1", "upgrade", "补日志");
+    assert_eq!(run.steps.len(), 7, "创建 run 时就该带 7 个步骤");
+    assert!(run.steps.iter().all(|step| step.status == "pending"));
+    run.set_step("fetch", "done", Some("已解析".to_string()), None, Some(100));
+    let fetch = run.steps.iter().find(|step| step.key == "fetch").unwrap();
+    assert_eq!(fetch.status, "done");
+    assert_eq!(fetch.progress, Some(100));
+    assert!(fetch.finished_at.is_some(), "完成态要写 finishedAt");
+}
+
+#[test]
+fn events_are_persisted_for_replay_after_restart() {
+    use crate::events::RunChannel;
+    let dir = temp_dir("events");
+    let log = dir.join("run-c.events.jsonl");
+    let channel = RunChannel::new("run-c", Some(log.clone()));
+    channel.emit("step.status", Some(serde_json::json!({ "key": "fetch" })));
+    channel.emit("run.done", None);
+    let text = fs::read_to_string(&log).unwrap();
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 2, "每条事件都要落盘");
+    let parsed: serde_json::Value = serde_json::from_str(lines[0]).unwrap();
+    assert_eq!(parsed["seq"], 1);
+    assert_eq!(parsed["type"], "step.status");
+    let _ = fs::remove_dir_all(&dir);
+}

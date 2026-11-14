@@ -8,7 +8,11 @@
 //!   tsd-server-rs --port 8801 --host 127.0.0.1 --workspace /path/to/workspace
 
 mod diff;
+mod events;
+mod pipeline;
+mod projects;
 mod routes;
+mod runs;
 mod state;
 mod store;
 

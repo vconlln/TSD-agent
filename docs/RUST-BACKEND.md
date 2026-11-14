@@ -24,7 +24,7 @@ Agent 类后端有两类代码：
 | 层 | 内容 | 状态 | 验收 |
 | --- | --- | --- | --- |
 | **L1 只读契约** | `GET /api/health`、`/settings`、`/projects`、`/projects/:id`、`/documents`、`/diff`、`/tree`、`/file` | ✅ **已完成** | `contract-check --read-only` 13/13 |
-| **L2 运行与事件流** | `POST /projects/:id/run`、`GET /runs`、`GET /runs/:id`、`POST /runs/:id/cancel`、`GET /runs/:id/events`（SSE） | ⏳ 下一步 | `contract-check` 必需项 30/30 + `run_e2e` 的 SSE 断言 |
+| **L2 运行与事件流** | `POST/PATCH/DELETE /projects`、`POST /projects/:id/run`、`GET /runs`、`GET /runs/:id`、`POST /runs/:id/cancel`、`GET /runs/:id/events`（SSE） | ✅ **已完成** | `contract-check --no-chat` 必需项 **27/27** |
 | **L3 对话** | `POST /projects/:id/chat` + `chat.delta/reasoning/tool/message` | ⏳ | `run_chat_e2e` 的 25 项断言 |
 | **L4 Git 与凭证** | `/api/git/*`、`/api/auth/w3/*`、`/api/models` | ⏳ | `run_git_e2e` 的 37 项断言 |
 | **L5 Agent 循环** | 工具沙箱、验证循环、提示词、模型协议 | ⏳ | `run_agent_e2e` 的 23 项断言 |
@@ -100,7 +100,24 @@ rust-backend/
 
 ---
 
-## L2 设计要点（下一步实现前先定好）
+## L2 实测（2026-11）
+
+| 项 | 结果 |
+| --- | --- |
+| `contract-check --no-chat` | **必需项 27/27**（含 SSE：24 个事件、seq 单调、7 个步骤 key、步骤写回 run.json） |
+| 一次完整流水线 | 7 步全 done，产出 `plan/PLAN.md`、`plan/UPDATE.md`、`source/`、`v{target}/`（CHANGELOG / UPGRADE_NOTES / 版本号 / README）、`diff.json` |
+| 冷启动 | 9 ms（Python 551 ms） |
+| 单元测试 | **9 个**（补丁计数/空补丁/章节切分/章节增删改/重命名识别/seq 单调/since 回放/终止事件关闭通道/事件落盘） |
+
+### L2 已实现的行为
+
+- 事件中心：每 run 一条通道，seq 从 1 单调递增；内存环形缓冲 4000 条 + `runs/<id>.events.jsonl` 落盘
+- SSE：`since=N` 先回放 `seq > N` 的历史再转实时；`run.done`/`run.error` 后发 `data: [DONE]` 并关闭；进程重启后从 jsonl 回放
+- 步骤写回：每次 `step.status` 立即写 `runs/<id>.json`（前端刷新只读这个）
+- 取消：`POST /runs/:id/cancel` 置原子标记，流水线在每个阶段边界检查
+- 流水线：fetch（curl 抓页面 + HTML 转文本）/ download（本地目录复制、git clone、解压、兜底脚手架）/ analyze / update / code（确定性离线改动）/ diff / finalize
+
+## L2 设计要点（已按此实现）
 
 1. **事件中心**：`HashMap<runId, Channel>` + 环形缓冲（内存里保留最近 N 条），
    同时把每条事件 append 到 `runs/<runId>.events.jsonl` 用于**进程重启后回放**。

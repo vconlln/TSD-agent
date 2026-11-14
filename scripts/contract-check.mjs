@@ -14,7 +14,7 @@
 import { setTimeout as sleep } from 'node:timers/promises'
 
 function parseArgs(argv) {
-  const options = { api: 'http://127.0.0.1:8791', readOnly: false, json: false, timeoutMs: 20000, keep: false }
+  const options = { api: 'http://127.0.0.1:8791', readOnly: false, noChat: false, json: false, timeoutMs: 20000, keep: false }
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]
     const next = () => {
@@ -26,6 +26,7 @@ function parseArgs(argv) {
     switch (arg) {
       case '--api': options.api = next().replace(/\/$/, ''); break
       case '--read-only': options.readOnly = true; break
+      case '--no-chat': options.noChat = true; break
       case '--json': options.json = true; break
       case '--keep': options.keep = true; break
       case '--timeout': options.timeoutMs = Number(next()); break
@@ -371,7 +372,8 @@ async function main() {
   let project = null
   if (!options.readOnly) {
     project = await checkProjectFlow(options)
-    if (project) await checkChat(options, project)
+    // L2 验收（--no-chat）：运行与事件流是必须的，对话属于 L3
+    if (project && !options.noChat) await checkChat(options, project)
     if (project && !options.keep) {
       const removed = await http(options, '/api/projects/' + project.id, { method: 'DELETE' })
       record('清理', 'DELETE /api/projects/:id', removed.ok, removed.ok ? 'ok' : 'HTTP ' + removed.status)

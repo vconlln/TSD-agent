@@ -4,7 +4,7 @@ TSD Agent 的 **Rust 后端**（按契约分层迁移，第 1 层：只读接口
 
 前端一行都不用改：它只认 `docs/BACKEND-INTEGRATION.md` 里的 HTTP + SSE 契约。
 
-## 当前覆盖（第 1 层）
+## 当前覆盖（第 1 + 2 层）
 
 | 接口 | 状态 |
 | --- | --- |
@@ -16,7 +16,11 @@ TSD Agent 的 **Rust 后端**（按契约分层迁移，第 1 层：只读接口
 | `GET /api/projects/:id/diff` | ✅（逐文件 unified patch + 方案章节差异） |
 | `GET /api/projects/:id/tree` | ✅ |
 | `GET /api/projects/:id/file` | ✅（二进制识别、超大文件截断） |
-| 其余（run / SSE / chat / git / W3） | ⏳ 第 2~4 层 |
+| `POST/PATCH/DELETE /api/projects` | ✅ |
+| `POST /api/projects/:id/run` | ✅（7 步离线流水线，无模型） |
+| `GET /api/runs`、`GET /api/runs/:id`、`POST /api/runs/:id/cancel` | ✅ |
+| `GET /api/runs/:id/events`（SSE） | ✅（seq 按 run 隔离、since 回放、`[DONE]`、重启后从 jsonl 回放） |
+| 其余（chat / git / W3 / agent 工具循环） | ⏳ 第 3~5 层 |
 
 ## 运行
 
@@ -40,7 +44,8 @@ cargo build --release
 
 ```bash
 # 只读模式：不创建项目、不触发运行
-node ../scripts/contract-check.mjs --api http://127.0.0.1:8801 --read-only
+node ../scripts/contract-check.mjs --api http://127.0.0.1:8801 --read-only   # L1：只读
+node ../scripts/contract-check.mjs --api http://127.0.0.1:8801 --no-chat      # L2：+ 运行与 SSE
 ```
 
 ## 设计取舍
