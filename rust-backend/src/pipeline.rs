@@ -128,11 +128,21 @@ impl Pipeline {
         if self.stopped() {
             return self.finish_cancelled("download");
         }
-        let file_count = match prepare_source(&project, &source_dir) {
-            Ok(count) => count,
-            Err(error) => {
-                self.fail("download", &error);
-                return json!({ "status": "failed" });
+        // 复用项目内已有的 Git 工作区：重新下载会把 .git 删掉，后续提交推送全废
+        let reused_clone = project.get("sourceKind").and_then(Value::as_str) == Some("git")
+            && source_dir.join(".git").exists();
+        let file_count = if reused_clone {
+            let count = crate::store::walk_files(&source_dir).len();
+            self.channel
+                .log("info", "复用项目内已有的 Git 工作区，跳过重复下载", Some("download"));
+            count
+        } else {
+            match prepare_source(&project, &source_dir) {
+                Ok(count) => count,
+                Err(error) => {
+                    self.fail("download", &error);
+                    return json!({ "status": "failed" });
+                }
             }
         };
         self.channel.log("info", &format!("代码就绪：{} 个文件", file_count), Some("download"));

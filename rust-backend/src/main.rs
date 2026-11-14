@@ -7,9 +7,12 @@
 //! 用法：
 //!   tsd-server-rs --port 8801 --host 127.0.0.1 --workspace /path/to/workspace
 
+mod auth;
 mod chat;
 mod diff;
 mod events;
+mod gitops;
+mod inline;
 mod llm;
 mod pipeline;
 mod projects;

@@ -26,7 +26,7 @@ Agent 类后端有两类代码：
 | **L1 只读契约** | `GET /api/health`、`/settings`、`/projects`、`/projects/:id`、`/documents`、`/diff`、`/tree`、`/file` | ✅ **已完成** | `contract-check --read-only` 13/13 |
 | **L2 运行与事件流** | `POST/PATCH/DELETE /projects`、`POST /projects/:id/run`、`GET /runs`、`GET /runs/:id`、`POST /runs/:id/cancel`、`GET /runs/:id/events`（SSE） | ✅ **已完成** | `contract-check --no-chat` 必需项 **27/27** |
 | **L3 对话与提案** | `POST /projects/:id/chat` + `chat.delta/reasoning/tool/message` + `POST/DELETE /projects/:id/apply` + `GET/PUT /settings` | ✅ **已完成** | `contract-check` 必需项 **30/30**；`run_chat_e2e --backend rust` **25/25** |
-| **L4 Git 与凭证** | `/api/git/*`、`/api/auth/w3/*`、`/api/models` | ⏳ | `run_git_e2e` 的 37 项断言 |
+| **L4 Git 与凭证** | `/api/git/*`、`/api/auth/w3/*`、`/api/models`、`files/write`、`search`、`export`、`agent/edit｜explain` | ✅ **已完成** | `run_git_e2e --backend rust` **37/37** |
 | **L5 Agent 循环** | 工具沙箱、验证循环、提示词、模型协议 | ⏳ | `run_agent_e2e` 的 23 项断言 |
 
 ---
@@ -77,11 +77,13 @@ cargo run --release -- --port 8801 --workspace ../scripts/e2e/.tmp/demo-workspac
 ```
 
 ```bash
-# 验收（三层逐级收紧；已封装成 npm script）
+# 验收（逐层收紧；已封装成 npm script）
 npm run rust:check:read    # L1：只读契约 13/13
 npm run rust:check:l2      # L2：加上运行与 SSE，27/27
 npm run rust:check         # L3：再加对话与提案，30/30
 npm run rust:e2e:chat      # L3 深度：同一套 25 项断言跑 Rust 后端
+npm run rust:e2e:git       # L4 深度：Git + W3 + 编辑器 AI，37 项断言
+npm run rust:e2e:all       # 上面两个一起跑
 ```
 
 ---
@@ -180,4 +182,31 @@ rust-backend/
 `safe_join` 用 `canonicalize` 校验，**只适合读已有文件**：对话提案经常新建 `docs/xxx.md`，
 canonicalize 失败会被静默跳过（接口返回 200 但 `files: []`）。现在读写分开：
 读用 `safe_join`，写用 `safe_write_path`（逐级建目录后校验父目录仍在沙箱内）。
+
+
+---
+
+## L4 实测（2026-11）
+
+| 项 | 结果 |
+| --- | --- |
+| `run_git_e2e --backend rust` | **37/37** 断言全绿 |
+| W3 凭证 | 演示模式（无网关）签发本地凭证、拒绝短密码、`tokenPreview`、退出清理；真实网关走 reqwest 登录（`token`/`accessToken`/`access_token` 三种字段都兼容） |
+| 模型清单 | `/api/models` 未登录 401（与 Python 同口径）；登录后演示模式回内置 4 个模型，`source=builtin`；真实网关按 `models`/`data`/`items` 三种返回解析 |
+| 仓库检索 | 本地扫描识别工作区仓库与**裸仓库**（`HEAD`+`objects`+`refs`）；远程支持 GitLab / GitHub / 通用 REST，失败自动回退本地并给出说明 |
+| 克隆 → 升级 → 提交 → 推送 | 克隆保留 `.git`；升级后 `publish` 建 `upgrade/v1.3.0` 分支、只同步差异文件、提交并推送到裸仓库；`compare` 显示 `ahead=1` |
+| 编辑器内 AI | 无模型时解释退化为结构化静态分析（依赖/类型/函数/导出）、修改明确拒绝并给出可操作提示 |
+| 文件写回 | `POST /files/write` 写入后立刻刷新差异；`../../escape.ts` 被 400 拒绝 |
+| 导出 | `POST /export` 产出 `plan/*` + `diff.json` + `code/*` 的 zip（deflate） |
+
+### L4 期间修掉的真实缺陷
+
+流水线的 `download` 步骤原来**无条件删掉** `source/` 再重新拉取，会把克隆来的 `.git` 一起删掉，
+导致后续「提交/推送」全部报「不是 Git 仓库」。现在与 Python 版一致：`sourceKind=git` 且 `source/.git` 存在时直接复用。
+这个 bug 只有把 e2e 真的跑在 Rust 后端上才会暴露（契约检查器看不到 `.git`）。
+
+### 为什么把编辑器内 AI 放在 L4
+
+`agent/edit`、`agent/explain` 是「单轮、无工具、有明确降级」的调用，接上 `llm.rs` 就能跑通；
+真正需要单独一层的是**多步工具循环**（L5）：步数预算、观察截断、验证命令、失败重试，那些才是易变部分。
 

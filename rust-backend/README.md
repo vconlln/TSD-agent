@@ -4,7 +4,7 @@ TSD Agent 的 **Rust 后端**（按契约分层迁移，已完成第 1~3 层）�
 
 前端一行都不用改：它只认 `docs/BACKEND-INTEGRATION.md` 里的 HTTP + SSE 契约。
 
-## 当前覆盖（第 1~3 层）
+## 当前覆盖（第 1~4 层）
 
 | 接口 | 状态 |
 | --- | --- |
@@ -23,7 +23,13 @@ TSD Agent 的 **Rust 后端**（按契约分层迁移，已完成第 1~3 层）�
 | `PUT /api/settings` | ✅（白名单合并、密钥只写不回传、原子落盘） |
 | `POST /api/projects/:id/chat` | ✅（流式：`chat.reasoning/delta/tool/message`；5 个工具；最多 6 轮） |
 | `POST/DELETE /api/projects/:id/apply` | ✅（提案落盘 + 立刻重算 diff） |
-| 其余（git / W3 凭证 / 模型列表 / agent 工具循环） | ⏳ 第 4~5 层 |
+| `GET /api/auth/w3/status`、`POST /api/auth/w3/login`、`POST /api/auth/w3/logout` | ✅（演示模式 / 真实网关两种口径，密码不落盘） |
+| `GET /api/models` | ✅（未登录 401；登录后回内置或网关模型清单） |
+| `GET /api/git/repos` | ✅（本地扫描识别裸仓库；GitLab / GitHub / 通用 REST，失败回退本地） |
+| `/api/projects/:id/git/{clone,status,branches,compare,publish,push}` | ✅（保留 `.git`、只同步差异文件、令牌注入 https 推送） |
+| `/api/projects/:id/{files/write,search,export}` | ✅（写入即刷新差异；导出 zip 含 plan + diff + code） |
+| `/api/projects/:id/agent/{edit,explain}` | ✅（无模型时解释走结构化静态分析、修改明确拒绝） |
+| 其余（agent 多步工具循环） | ⏳ 第 5 层 |
 
 ## 运行
 
@@ -57,6 +63,7 @@ node ../scripts/contract-check.mjs --api http://127.0.0.1:8801                # 
 ```bash
 python ../scripts/e2e/run_chat_e2e.py                 # Python 参照后端
 python ../scripts/e2e/run_chat_e2e.py --backend rust  # Rust 后端，25 项断言
+python ../scripts/e2e/run_git_e2e.py --backend rust   # Git + W3 + 编辑器 AI，37 项断言
 ```
 
 ## 设计取舍

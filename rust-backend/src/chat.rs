@@ -287,6 +287,8 @@ impl ChatTask {
         let mut outcome_reasoning = String::new();
         let mut tool_calls = 0usize;
         let mut rounds = 0usize;
+        // 是否已经通过 SSE 真流式推过正文；没推过的（离线 / 网关不支持流式）在结尾切片补上
+        let mut streamed = false;
 
         if online && !self.stopped() {
             let context = format!(
@@ -362,7 +364,10 @@ impl ChatTask {
                         }
                     };
                     match llm.stream_chat(&messages, tools.as_ref(), on_chunk).await {
-                        Ok(outcome) => Ok(outcome),
+                        Ok(outcome) => {
+                            streamed = true;
+                            Ok(outcome)
+                        }
                         Err(error) => {
                             if error == "stream-unsupported" {
                                 self.channel.log("warn", "模型不支持流式，退回非流式对话", None);
@@ -392,6 +397,7 @@ impl ChatTask {
 
                 if !use_stream {
                     // 非流式路径也要给前端增量感：按 36 字切片推
+                    // 正文统一在收尾时切片推送，避免与真流式重复
                     if !outcome.reasoning.is_empty() {
                         let text = outcome.reasoning.clone();
                         self.channel.emit_full(
@@ -401,16 +407,6 @@ impl ChatTask {
                             None,
                             Some(text.clone()),
                             Some(json!({ "delta": text })),
-                        );
-                    }
-                    for piece in split_chunks(&outcome.content, 36) {
-                        self.channel.emit_full(
-                            "chat.delta",
-                            None,
-                            None,
-                            None,
-                            Some(piece.clone()),
-                            Some(json!({ "delta": piece })),
                         );
                     }
                 }
@@ -477,6 +473,20 @@ impl ChatTask {
         } else {
             outcome_reply
         };
+
+        // 离线 / 非流式回答：切成小块推给前端，保持「逐字出现」
+        if !streamed && !reply.is_empty() {
+            for piece in split_chunks(&reply, 36) {
+                self.channel.emit_full(
+                    "chat.delta",
+                    None,
+                    None,
+                    None,
+                    Some(piece.clone()),
+                    Some(json!({ "delta": piece })),
+                );
+            }
+        }
 
         let reasoning_chars = outcome_reasoning.chars().count();
         if reasoning_chars > 0 {

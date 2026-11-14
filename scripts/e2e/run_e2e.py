@@ -28,6 +28,8 @@ from pathlib import Path
 
 import httpx
 
+from backend import backend_command  # noqa: E402  （同目录工具）
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 SAMPLE = HERE / "sample-repo"
@@ -109,6 +111,7 @@ async def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--keep", action="store_true", help="保留临时工作目录")
     parser.add_argument("--verbose", action="store_true", help="打印全部事件")
+    parser.add_argument("--backend", choices=["python", "rust"], default="python", help="跑哪个后端（同一套断言）")
     args = parser.parse_args()
 
     tmp_parent = ROOT / "scripts" / "e2e" / ".tmp"
@@ -133,14 +136,7 @@ async def main() -> int:
         stderr=subprocess.DEVNULL,
     )
     backend_proc = subprocess.Popen(
-        [
-            sys.executable,
-            str(ROOT / "server" / "main.py"),
-            "--port",
-            str(api_port),
-            "--workspace",
-            str(workspace),
-        ],
+        backend_command(api_port, workspace),
         stdout=server_log,
         stderr=subprocess.STDOUT,
         env={

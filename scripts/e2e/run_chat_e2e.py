@@ -26,6 +26,8 @@ from pathlib import Path
 
 import httpx
 
+from backend import backend_command  # noqa: E402  （同目录工具）
+
 ROOT = Path(__file__).resolve().parents[2]
 PASS = "\033[92m✓\033[0m"
 FAIL = "\033[91m✗\033[0m"
@@ -40,27 +42,6 @@ def check(condition: bool, label: str, detail: str = "") -> bool:
     print(f"  {FAIL} {label}" + (f"  -> {detail}" if detail else ""))
     failures.append(label)
     return False
-
-
-def rust_binary() -> str:
-    name = "tsd-server-rs.exe" if os.name == "nt" else "tsd-server-rs"
-    return str(ROOT / "rust-backend" / "target" / "release" / name)
-
-
-def backend_command(port: int, workspace: Path) -> list[str]:
-    """默认跑 Python 参照实现。
-
-    --backend rust（或 TSD_BACKEND_BIN=<可执行文件>）时改跑 Rust 后端：
-    同一套断言，用来证明两层实现在契约上等价。
-    """
-    binary = os.environ.get("TSD_BACKEND_BIN", "").strip()
-    if not binary and "--backend" in sys.argv and "rust" in sys.argv:
-        binary = rust_binary()
-    if binary:
-        if not Path(binary).exists():
-            raise SystemExit(f"找不到后端可执行文件：{binary}（先 npm run rust:build）")
-        return [binary, "--port", str(port), "--workspace", str(workspace)]
-    return [sys.executable, str(ROOT / "server" / "main.py"), "--port", str(port), "--workspace", str(workspace)]
 
 
 def free_port() -> int:

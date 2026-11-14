@@ -174,5 +174,33 @@ pub fn hashed(path: &Path) -> u64 {
     bytes.hash(&mut hasher);
     hasher.finish()
 }
-
-
+/// 从常见项目文件里探测版本号（与 Python 版 detect_version 同序）
+pub fn detect_version(root: &Path) -> Option<String> {
+    const CANDIDATES: &[(&str, &str)] = &[
+        ("package.json", r#""version"\s*:\s*"([^"]+)""#),
+        ("pyproject.toml", r#"(?m)^\s*version\s*=\s*"([^"]+)""#),
+        ("Cargo.toml", r#"(?m)^\s*version\s*=\s*"([^"]+)""#),
+        ("pom.xml", r"<version>([^<]+)</version>"),
+        ("setup.py", r#"version\s*=\s*['"]([^'"]+)['"]"#),
+        ("VERSION", r"([0-9]+\.[0-9]+(?:\.[0-9]+)?)"),
+        ("version.txt", r"([0-9]+\.[0-9]+(?:\.[0-9]+)?)"),
+    ];
+    for (name, pattern) in CANDIDATES {
+        let path = root.join(name);
+        if !path.exists() {
+            continue;
+        }
+        let (text, _) = read_text(&path, 200_000);
+        let Ok(regex) = regex::Regex::new(pattern) else { continue };
+        if let Some(captured) = regex.captures(&text) {
+            let value = captured.get(1).map(|item| item.as_str().trim().to_string()).unwrap_or_default();
+            let valid = !value.is_empty()
+                && value.len() <= 24
+                && value.chars().all(|ch| ch.is_ascii_alphanumeric() || "._-".contains(ch));
+            if valid {
+                return Some(value);
+            }
+        }
+    }
+    None
+}

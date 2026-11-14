@@ -141,16 +141,31 @@ impl Llm {
     }
 
     fn payload(&self, messages: &[Value], tools: Option<&Value>, stream: bool) -> Value {
+        self.payload_with(messages, tools, stream, None, None, false)
+    }
+
+    fn payload_with(
+        &self,
+        messages: &[Value],
+        tools: Option<&Value>,
+        stream: bool,
+        max_tokens: Option<u32>,
+        temperature: Option<f64>,
+        json_mode: bool,
+    ) -> Value {
         let mut payload = json!({
             "model": self.config.model,
             "messages": messages,
-            "temperature": self.config.temperature,
-            "max_tokens": self.config.max_tokens,
+            "temperature": temperature.unwrap_or(self.config.temperature),
+            "max_tokens": max_tokens.unwrap_or(self.config.max_tokens),
             "stream": stream,
         });
         if let Some(tools) = tools {
             payload["tools"] = tools.clone();
             payload["tool_choice"] = json!("auto");
+        }
+        if json_mode {
+            payload["response_format"] = json!({ "type": "json_object" });
         }
         payload
     }
@@ -279,11 +294,22 @@ impl Llm {
         messages: &[Value],
         tools: Option<&Value>,
     ) -> Result<StreamOutcome, String> {
+        self.chat_once_with(messages, tools, None, None).await
+    }
+
+    /// 非流式 + 覆盖采样参数（编辑器内 AI 用短输出）
+    pub async fn chat_once_with(
+        &self,
+        messages: &[Value],
+        tools: Option<&Value>,
+        max_tokens: Option<u32>,
+        temperature: Option<f64>,
+    ) -> Result<StreamOutcome, String> {
         let response = self
             .client
             .post(self.config.endpoint())
             .bearer_auth(&self.config.api_key)
-            .json(&self.payload(messages, tools, false))
+            .json(&self.payload_with(messages, tools, false, max_tokens, temperature, false))
             .send()
             .await
             .map_err(|error| format!("模型请求失败：{error}"))?;
@@ -306,4 +332,82 @@ impl Llm {
             tool_calls: parse_tool_calls(&message),
         })
     }
+
+    /// 结构化输出：先要求 response_format=json_object，网关不认就去掉重试一次。
+    /// 返回 None 表示模型没给出可解析的 JSON（调用方决定怎么降级）。
+    pub async fn chat_json(
+        &self,
+        messages: &[Value],
+        max_tokens: u32,
+        temperature: f64,
+    ) -> Result<Option<Value>, String> {
+        for json_mode in [true, false] {
+            let response = self
+                .client
+                .post(self.config.endpoint())
+                .bearer_auth(&self.config.api_key)
+                .json(&self.payload_with(
+                    messages,
+                    None,
+                    false,
+                    Some(max_tokens),
+                    Some(temperature),
+                    json_mode,
+                ))
+                .send()
+                .await
+                .map_err(|error| format!("模型请求失败：{error}"))?;
+            if !response.status().is_success() {
+                if json_mode {
+                    // 网关不支持 response_format：去掉重试
+                    continue;
+                }
+                let status = response.status();
+                let body = response.text().await.unwrap_or_default();
+                return Err(format!(
+                    "模型返回 {status}：{}",
+                    body.replace('\n', " ").chars().take(300).collect::<String>()
+                ));
+            }
+            let value: Value = response
+                .json()
+                .await
+                .map_err(|error| format!("模型返回不是 JSON：{error}"))?;
+            let text = value
+                .get("choices")
+                .and_then(Value::as_array)
+                .and_then(|choices| choices.first())
+                .and_then(|choice| choice.get("message"))
+                .and_then(|message| message.get("content"))
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_string();
+            if let Some(parsed) = parse_json_object(&text) {
+                return Ok(Some(parsed));
+            }
+            if !json_mode {
+                return Ok(None);
+            }
+        }
+        Ok(None)
+    }
 }
+
+/// 从模型输出里抓第一个 JSON 对象（容忍代码围栏与前后说明文字）
+fn parse_json_object(text: &str) -> Option<Value> {
+    let trimmed = text.trim();
+    if let Ok(value) = serde_json::from_str::<Value>(trimmed) {
+        if value.is_object() {
+            return Some(value);
+        }
+    }
+    let start = trimmed.find('{')?;
+    let end = trimmed.rfind('}')?;
+    if end <= start {
+        return None;
+    }
+    serde_json::from_str::<Value>(&trimmed[start..=end])
+        .ok()
+        .filter(Value::is_object)
+}
+

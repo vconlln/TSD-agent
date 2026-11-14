@@ -21,6 +21,8 @@ pub struct AppState {
     pub hub: EventHub,
     /// runId -> 取消标记；流水线在每个阶段边界检查
     pub cancels: Mutex<HashMap<String, Arc<AtomicBool>>>,
+    /// W3 登录后的模型清单缓存（与 Python 的 _models 等价）
+    pub w3_models: Mutex<Vec<Value>>,
 }
 
 impl AppState {
@@ -31,6 +33,7 @@ impl AppState {
             started: Instant::now(),
             hub: EventHub::default(),
             cancels: Mutex::new(HashMap::new()),
+            w3_models: Mutex::new(Vec::new()),
         }
     }
 

@@ -24,6 +24,8 @@ from pathlib import Path
 
 import httpx
 
+from backend import backend_command  # noqa: E402  （同目录工具）
+
 ROOT = Path(__file__).resolve().parents[2]
 PASS = "\033[92m✓\033[0m"
 FAIL = "\033[91m✗\033[0m"
@@ -149,7 +151,7 @@ async def main() -> int:
     )
     backend_log = (work_root / "server.log").open("wb")
     backend = subprocess.Popen(
-        [sys.executable, str(ROOT / "server" / "main.py"), "--port", str(api_port), "--workspace", str(workspace)],
+        backend_command(api_port, workspace),
         stdout=backend_log,
         stderr=subprocess.STDOUT,
         env={**{k: v for k, v in os.environ.items() if "proxy" not in k.lower()}, "TSD_LLM_API_KEY": ""},
