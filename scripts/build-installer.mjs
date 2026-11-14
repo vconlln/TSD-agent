@@ -199,12 +199,14 @@ function stageRustBackend(options) {
       ]
     : [path.join(ROOT, 'rust-backend', 'target', 'release', name)]
   const binary = candidates.find((candidate) => existsSync(candidate))
+  const targetDir = path.join(ROOT, 'backend-dist', 'tsd-server-rs')
   if (!binary) {
+    // 关键：清掉上一次为别的平台暂存的二进制，否则会把 Linux ELF 打进 Windows 包
+    rmSync(targetDir, { recursive: true, force: true })
     console.log('\n▸ 未找到 Rust 后端二进制（' + candidates[0].replace(ROOT + path.sep, '') + '）')
     console.log('  安装包将使用 Python 后端；想用 Rust：npm run rust:build（交叉到 Windows 需要 mingw + rustup target）')
     return false
   }
-  const targetDir = path.join(ROOT, 'backend-dist', 'tsd-server-rs')
   rmSync(targetDir, { recursive: true, force: true })
   mkdirSync(targetDir, { recursive: true })
   cpSync(binary, path.join(targetDir, name))
