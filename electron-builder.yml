@@ -17,6 +17,10 @@ files:
 
 asar: true
 compression: maximum
+# 只保留中英语言包：Electron 自带 50+ 种 locales，其它语言占 ~40MB 却没人用
+electronLanguages:
+  - zh-CN
+  - en-US
 
 # 内置 Python 后端（PyInstaller onedir 产物）。
 # CI / 本地打包脚本会把 server/dist/tsd-server 拷到 backend-dist/tsd-server。
