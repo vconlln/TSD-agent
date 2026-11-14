@@ -14,6 +14,8 @@ server/build/
 server/dist/
 # 由 PyInstaller 生成、随安装包分发的后端（见 backend-dist/README.md）
 backend-dist/tsd-server/
+# Rust 后端产物（npm run rust:build 后由打包脚本复制进来）
+backend-dist/tsd-server-rs/
 *.spec.bak
 
 # 交叉构建 Windows 包用的 Wine 前缀 / Windows Python / 下载缓存

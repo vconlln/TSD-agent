@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, statSync } from 'node:fs'
 import net from 'node:net'
 import path from 'node:path'
 import type { BackendStatus } from '../shared/bridge'
@@ -62,11 +62,50 @@ export class BackendSupervisor {
     return list
   }
 
-  /** Locate a bundled backend binary (PyInstaller output) or the dev source tree. */
+  /**
+   * Rust 后端的候选路径（优先）：打包后在 resources/backend，开发时在 rust-backend/target。
+   * 顺序即优先级——Rust 侧与 Python 侧跑同一套契约，所以能跑 Rust 就跑 Rust。
+   */
+  private rustCandidates(): string[] {
+    const resources = process.resourcesPath
+    const isWin = process.platform === 'win32'
+    const name = isWin ? 'tsd-server-rs.exe' : 'tsd-server-rs'
+    const list: string[] = []
+    if (process.env.TSD_BACKEND_BIN) list.push(process.env.TSD_BACKEND_BIN)
+    list.push(
+      path.join(resources, 'backend', name),
+      path.join(resources, 'backend', 'tsd-server-rs', name),
+      path.join(app.getAppPath(), 'backend-dist', name),
+      path.join(app.getAppPath(), 'rust-backend', 'target', 'release', name),
+      path.join(app.getAppPath(), 'rust-backend', 'target', 'x86_64-pc-windows-gnu', 'release', name),
+      path.join(app.getAppPath(), 'rust-backend', 'target', 'x86_64-pc-windows-msvc', 'release', name),
+      path.join(app.getAppPath(), '..', 'rust-backend', 'target', 'release', name),
+    )
+    return list
+  }
+
+  /** Locate a bundled backend binary (Rust 优先，其次 PyInstaller 输出) 或 dev source tree。 */
   private resolveEntry(): { command: string; args: string[]; cwd: string } | null {
     const resources = process.resourcesPath
     const isWin = process.platform === 'win32'
     const exe = isWin ? 'tsd-server.exe' : 'tsd-server'
+
+    // 1) Rust 后端（单文件二进制，冷启动 ~9ms）
+    // 注意必须判 isFile：打包后 resources/backend/tsd-server-rs 可能是目录（含 prompts/）
+    if (process.env.TSD_BACKEND_ENGINE !== 'python') {
+      for (const candidate of this.rustCandidates()) {
+        if (!candidate) continue
+        try {
+          if (statSync(candidate).isFile()) {
+            return { command: candidate, args: [], cwd: path.dirname(candidate) }
+          }
+        } catch {
+          /* 不存在就是没打包，继续找 */
+        }
+      }
+    }
+
+    // 2) Python 后端（参照实现 / 兜底）
     const binaryCandidates = [
       path.join(resources, 'backend', 'tsd-server', exe),
       path.join(resources, 'backend', exe),
@@ -126,14 +165,20 @@ export class BackendSupervisor {
         state: 'error',
         mode: 'embedded',
         url: '',
-        message: '未找到 Python 后端。请安装 Python 3.10+，或在设置中指定解释器路径。',
+        message: '未找到后端可执行文件。请先 npm run rust:build，或安装 Python 3.10+ 并在设置中指定解释器路径。',
       })
       return this.status
     }
 
     const port = await this.freePort()
     const url = `http://127.0.0.1:${port}`
-    this.emit({ state: 'starting', mode: 'embedded', url, message: '正在启动 Python 后端…' })
+    const isRust = path.basename(entry.command).startsWith('tsd-server-rs')
+    this.emit({
+      state: 'starting',
+      mode: 'embedded',
+      url,
+      message: isRust ? '正在启动 Rust 后端…' : '正在启动 Python 后端…',
+    })
 
     const args = [...entry.args, '--port', String(port), '--workspace', workspace, '--host', '127.0.0.1']
     try {
@@ -150,6 +195,8 @@ export class BackendSupervisor {
           PYTHONUNBUFFERED: '1',
           PYTHONIOENCODING: 'utf-8',
           TSD_WORKSPACE: workspace,
+          // 后端是 Rust 时提示词目录跟着可执行文件走（打包后 prompts 放在旁边）
+          ...(isRust ? { TSD_PROMPTS_DIR: path.join(path.dirname(entry.command), 'prompts') } : {}),
         },
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,

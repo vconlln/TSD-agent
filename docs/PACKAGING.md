@@ -117,6 +117,27 @@ npm run dist:win
 
 ---
 
+## 3.0 后端运行时：Rust 优先，Python 兜底
+
+安装包里可以同时带两个后端，**electron 的 supervisor 会优先选 Rust**：
+
+| 优先级 | 落点 | 来源 | 冷启动 | 体积 |
+| --- | --- | --- | --- | --- |
+| 1 | `resources/backend/tsd-server-rs/tsd-server-rs[.exe]` | `npm run rust:build` 产物 | **~9 ms** | ~8 MB |
+| 2 | `resources/backend/tsd-server/` | PyInstaller onedir | 551 ms | 28 MB |
+| 3 | 源码树里的 `rust-backend/target/release/` | 开发模式 | — | — |
+| 4 | `server/main.py` + 系统 Python | 开发 / 极端兜底 | — | — |
+
+打包时 `scripts/build-installer.mjs` 会自动找 Rust 产物（含 `prompts/`）放进 `backend-dist`；
+找不到就打一条提示继续，安装包不会因此不可用。想强制用 Python 后端：
+`TSD_BACKEND_ENGINE=python` 启动，或临时把 `tsd-server-rs` 目录改名。
+
+> Windows 安装包目前仍需 Python 后端：Rust 交叉编译到 `x86_64-pc-windows-*` 需要
+> `rustup target add` + mingw，本机没有这套工具链。有 Windows 机器时直接在那边
+> `cargo build --release` 后再 `npm run dist:installer -- --target win`，会优先打进 Rust 二进制。
+
+---
+
 ## 3. 让后端跟随你自己的服务
 
 如果不想内置 Python：

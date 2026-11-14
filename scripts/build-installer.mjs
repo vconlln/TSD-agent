@@ -185,6 +185,38 @@ function buildBackend(options, extraPip) {
   console.log('  后端产物 → backend-dist/tsd-server')
 }
 
+/**
+ * 把 Rust 后端二进制（含 prompts/）放进 backend-dist，打包后落点是 resources/backend/。
+ * 找不到就跳过——supervisor 会自动回退到 Python 后端，不会让安装包变成不能启动。
+ */
+function stageRustBackend(options) {
+  const isWin = options.target === 'win'
+  const name = isWin ? 'tsd-server-rs.exe' : 'tsd-server-rs'
+  const candidates = isWin
+    ? [
+        path.join(ROOT, 'rust-backend', 'target', 'x86_64-pc-windows-msvc', 'release', name),
+        path.join(ROOT, 'rust-backend', 'target', 'x86_64-pc-windows-gnu', 'release', name),
+      ]
+    : [path.join(ROOT, 'rust-backend', 'target', 'release', name)]
+  const binary = candidates.find((candidate) => existsSync(candidate))
+  if (!binary) {
+    console.log('\n▸ 未找到 Rust 后端二进制（' + candidates[0].replace(ROOT + path.sep, '') + '）')
+    console.log('  安装包将使用 Python 后端；想用 Rust：npm run rust:build（交叉到 Windows 需要 mingw + rustup target）')
+    return false
+  }
+  const targetDir = path.join(ROOT, 'backend-dist', 'tsd-server-rs')
+  rmSync(targetDir, { recursive: true, force: true })
+  mkdirSync(targetDir, { recursive: true })
+  cpSync(binary, path.join(targetDir, name))
+  const prompts = path.join(ROOT, 'rust-backend', 'prompts')
+  if (existsSync(prompts)) {
+    cpSync(prompts, path.join(targetDir, 'prompts'), { recursive: true })
+  }
+  const size = Math.round(statSync(binary).size / 1024 / 1024 * 10) / 10
+  console.log('\n▸ Rust 后端已就位 → backend-dist/tsd-server-rs（' + size + ' MB，含 prompts）')
+  return true
+}
+
 function writeConfig(bundledDir) {
   const generated = path.join(ROOT, 'build', 'electron-builder.generated.yml')
   const lines = ['extends: ./electron-builder.yml', 'extraResources:', '  - from: backend-dist', '    to: backend']
@@ -276,8 +308,10 @@ function main() {
     const bundledDir = prepareBundledResources(options)
     if (!bundledDir) console.log('  无额外资源')
 
-    console.log('==> 2/5 准备 Python 后端')
+    console.log('==> 2/5 准备后端（优先 Rust，兜底 Python）')
     buildBackend(options, collectExtraRequirements(options))
+
+    stageRustBackend(options)
 
     console.log('==> 3/5 构建前端')
     if (options.skipRenderer) {
