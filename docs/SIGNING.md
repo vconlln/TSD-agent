@@ -227,3 +227,120 @@ electron-builder 的 `rfc3161TimeStampServer` 默认已指向 DigiCert。
 
 域内安装**零提示**，不用每年续费，也不用碰硬件 token。
 将来要给外部客户装，再补一张 EV（要立即可信）或 Azure Trusted Signing（要自动化）。
+
+---
+
+## 9. 快速开始（10 分钟，内网零成本方案）
+
+本仓库有现成脚本，一条命令生成整套证书，再一条命令签名打包。
+
+### 第 1 步：生成证书（在构建机上，1 分钟）
+
+```bash
+bash scripts/gen-signing-cert.sh \
+  --org "Example Company" \
+  --cn "Example Company Publisher" \
+  --out ./signing
+```
+
+产出：
+
+| 文件 | 用途 |
+| --- | --- |
+| root.crt / root.cer | 根证书（cer 给 Windows 客户机安装） |
+| root.key | 根私钥（**离线保管**，签完就不用它了） |
+| sign.pfx | 签名包（构建时用） |
+| install-root.ps1 | 客户机管理员一键装根证书 |
+| verify.ps1 | 客户机校验安装包签名 |
+
+> **CN 用英文**：证书里的 CN 就是 Windows 上显示的「发布者」名字。
+> 中文 CN 在 Windows 上能显示，但老的签名工具（比如 osslsigncode 2.1）会打印成乱码，
+> 排查时很费劲。公司名用英文，显示不会错。
+
+脚本会把 pfx 密码打印出来（或用 `--password` 自己指定），记下来。
+
+### 第 2 步：客户机信任根证书（一次性）
+
+**有域环境（推荐）**：组策略推送
+
+`计算机配置 -> 策略 -> Windows 设置 -> 安全设置 -> 公钥策略 -> 受信任的根证书颁发机构 -> 导入 root.cer`
+
+**没有域环境**：每台机器用管理员 PowerShell 跑一次
+
+```powershell
+cd \\共享目录\signing
+powershell -ExecutionPolicy Bypass -File .\install-root.ps1
+```
+
+### 第 3 步：签名打包（在构建机上，一条命令）
+
+```bash
+export WIN_CSC_LINK=$(pwd)/signing/sign.pfx
+export WIN_CSC_KEY_PASSWORD=<脚本打印的密码>
+
+npm run dist:installer -- --target win --require-signature
+```
+
+成功的标志（构建日志末尾）：
+
+```
+  ✓ 已签名：TSD-Agent-Setup-1.3.0.exe（14 KB）
+  ✓ 已签名：TSD Agent.exe（14 KB）
+  ✓ 已签名：tsd-server.exe（14 KB）
+  冒烟通过：win32 / v1.3.0
+```
+
+### 第 4 步：在 Windows 上验一遍（半分钟）
+
+```powershell
+# 1) 文件属性 -> 数字签名 -> 应能看到你的公司名，状态「此数字签名正常」
+Get-AuthenticodeSignature .\TSD-Agent-Setup-1.3.0.exe | Format-List Status, SignerCertificate
+
+# 2) 官方工具校验（需要 Windows SDK 的 signtool，或装 Git for Windows 后自带）
+signtool verify /pa /v .\TSD-Agent-Setup-1.3.0.exe
+```
+
+期望输出： `Status : Valid` ， `SignerCertificate.Subject : CN=Example Company Publisher, O=Example Company, C=CN`
+
+### 第 5 步：把「未知发布者」彻底消掉的最后一步
+
+签了名 + 装了根证书之后，UAC 弹窗和文件属性里已经显示你的公司名，
+但**双击安装时仍可能看到 SmartScreen 的「Windows 已保护你的 PC」**。原因不是签名，是
+**Mark-of-the-Web（MOTW）**：从浏览器/IM 下载的文件带互联网标记，SmartScreen 对新发布者的
+「信誉」还不认识，就会拦。
+
+内网分发的三种解法（按推荐度）：
+
+| 解法 | 做法 | 效果 |
+| --- | --- | --- |
+| **从共享目录分发**（最简单） | 安装包放 \\文件服务器\software\，用户从网络路径复制/直接运行 | 网络共享来的文件不带 MOTW，直接没有 SmartScreen |
+| **GPO 关闭新应用信誉检查** | 计算机配置 -> 管理模板 -> Windows 组件 -> SmartScreen -> 「为 Microsoft Edge 关闭 SmartScreen」「关闭应用和文件检查」 | 域内所有机器不再弹，适合纯内网环境 |
+| **AppLocker / WDAC 发布者规则** | 用「发布者」规则只允许你内部 CA 签的程序运行 | 既免提示又是白名单，安全合规最优 |
+
+再补一条：如果用户是从微信/邮件收到安装包再复制的，让他右键 → 属性 → 勾「解除锁定」，
+或管理员跑 `Unblock-File .\TSD-Agent-Setup-1.3.0.exe`。
+
+> 顺便说：这三种解法都不需要花钱，也都不依赖微软给你的「信誉」。
+> 公开下载（GitHub Release）就没这个便利——那边只能靠 EV 证书攒信誉。
+
+### 常见问题
+
+| 现象 | 原因 | 处理 |
+| --- | --- | --- |
+| 构建日志说「未配置（产出的 exe 是未签名的）」 | 没设 WIN_CSC_LINK | 按第 3 步设环境变量；加 `--require-signature` 可以强制失败 |
+| `--require-signature` 报「要求签名但产物未签名」 | 证书密码错 / pfx 路径错 | 用 `openssl pkcs12 -in sign.pfx -passin pass:密码 -nokeys` 验证密码 |
+| Linux 上 osslsigncode 报 `libcrypto.so.1.1` | 构建机缺 OpenSSL 1.1 | 构建脚本会自动找，找不到就装 `openssl-1.1` 或改用 TSD_SIGN_CMD |
+| Linux 上 `osslsigncode verify` 报 `unsupported certificate purpose` | osslsigncode 2.1 用 S/MIME 用途去验 PKCS7，老工具的毛病 | **忽略**；在 Windows 上用 signtool 才是最终裁判 |
+| Windows 显示「此数字签名有问题」 | 根证书没装到「受信任的根」 | 重跑 install-root.ps1，或检查是不是装到了「当前用户」而不是「本地计算机」 |
+| 签名后仍然提示未知发布者 | 签名在打包之后被改动了（例如又手工改了 exe） | 签名必须是最后一步；改完要重签 |
+
+### 本地校验命令汇总（Linux）
+
+```bash
+# 证书链是否自洽
+openssl verify -purpose any -CAfile signing/root.crt signing/sign.crt
+
+# 安装包是否带签名块（构建脚本用的是同一套判定）
+node -e "const{openSync,readSync,closeSync}=require('node:fs');const fd=openSync(process.argv[1],'r');const b=Buffer.alloc(4096);readSync(fd,b,0,4096,0);closeSync(fd);const pe=b.readUInt32LE(0x3c);const opt=pe+24;const magic=b.readUInt16LE(opt);const dd=opt+(magic===0x20b?112:96);console.log('签名块字节数:',b.readUInt32LE(dd+36))" release/TSD-Agent-Setup-1.3.0.exe
+```
+
